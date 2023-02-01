@@ -129,7 +129,7 @@ class PathPirate:
             pass
 
         # set up necessary paths
-        self.currentDir = os.getcwd()
+        self.currentDir = os.path.realpath(os.path.dirname(__file__))
         self.newBin = os.path.join(self.currentDir, 'files/5i25_t2_7i85s_dpll.bit')
         self.rapidPath = os.path.join(self.currentDir, 'files/MAXVEL_100.jpg')
         self.halshowPath = os.path.join(self.currentDir, 'files/halshow.tcl')
@@ -144,7 +144,7 @@ class PathPirate:
         self.uiCommon = os.path.join(self.new, 'python/ui_common.py')
         self.hal1 = os.path.join(self.new, 'configs/common/operator_console_controls_3axis.hal')
         self.hal2 = os.path.join(self.new, 'configs/common/operator_console_controls_4axis.hal')
-        self.velPath = os.path.join(self.new, 'images/MAXVEL_100.jpg')
+        self.velPath = os.path.join(self.new, '/python/images/MAXVEL_100.jpg')
 
         # get current version and machine info
         self.getVersion()
