@@ -11,7 +11,7 @@ Enter the following in the terminal:
 ```console
 git clone https://github.com/snowgoer540/PathPirate.git ~/pathpirate
 ```
-### To launch PathPilot:
+### To launch PathPirate:
 Enter the following in the terminal:
 ```console
 python ~/pathpirate/pathpirate.py
