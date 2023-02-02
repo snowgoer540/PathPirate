@@ -360,12 +360,35 @@ class PathPirate:
             self.console.insert(tk.END, 'Image file copied to: {}\n'.format(self.velPath))
         self.console.see(tk.END)
 
+    # Added to center the tkSimpleDialog.askinteger box. Help from: https://stackoverflow.com/a/69904742 (and the tkSimpleDialog source code)
+    def askinteger(self, title, prompt, **kwargs):
+        def change_geometry():
+            w = kwargs['parent'].winfo_children()[-1]
+            if isinstance(w, tkSimpleDialog.Dialog):
+                w.withdraw()
+                w.transient(kwargs['parent'])
+                minwidth = w.winfo_reqwidth()
+                minheight = w.winfo_reqheight()
+                maxwidth = w.winfo_vrootwidth()
+                maxheight = w.winfo_vrootheight()
+                x = kwargs['parent'].winfo_rootx() + (kwargs['parent'].winfo_width() - minwidth) // 2
+                y = kwargs['parent'].winfo_rooty() + (kwargs['parent'].winfo_height() - minheight) // 2
+                vrootx = w.winfo_vrootx()
+                vrooty = w.winfo_vrooty()
+                x = min(x, vrootx + maxwidth - minwidth)
+                x = max(x, vrootx)
+                y = min(y, vrooty + maxheight - minheight)
+                y = max(y, vrooty)
+                w.geometry('+{}+{}'.format(x, y))
+                w.deiconify()
+        if 'parent' in kwargs:
+            kwargs['parent'].after(10, change_geometry)
+        return tkSimpleDialog.askinteger(title, prompt, **kwargs)
+
     # Adds an encoder to an 1100-3 machine (that is using a Mesa 7i85s card)
     def addEncoder(self, event=None):
         self.console.insert(tk.END, '\n---------------\nADDING ENCODER\n---------------\n')
-        #TODO: find a way to center the tkSimpleDialog to the parent window
-        scale = tkSimpleDialog.askinteger(title='ENCODER SCALE',
-                                      prompt='Enter the encoder scale:', initialvalue='-1440', parent=self.main)
+        scale = self.askinteger(title='ENCODER SCALE', prompt='Enter the encoder scale:', initialvalue='-1440', parent=self.main)
         if scale is None:
             self.console.insert(tk.END, 'Encoder scale is required\n')
             self.console.see(tk.END)
