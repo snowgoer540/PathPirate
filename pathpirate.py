@@ -35,6 +35,8 @@ import socket
 import os
 import json
 import difflib
+import time
+import threading
 
 
 class PathPirate:
@@ -686,30 +688,42 @@ class PathPirate:
         self.b3['state'] = 'normal'
         self.b4['state'] = 'normal'
 
-    def flashFirmware(self, firmwareFile):
+    def flashThread(self, firmwareFile):
+        self.console.insert(tk.END, '\nVerifying Mesa firmware...\n', 'cyan')
+        self.console.see(tk.END)
+        verify = threading.Thread(target=self.verifyFirmware(firmwareFile))
+        verify.start()
+        while verify.is_alive():
+            time.sleep(0.2)
+        if not verify:
+            return
+        self.console.insert(tk.END, '\nFlashing Mesa firmware...\n', 'cyan')
+        self.console.see(tk.END)
+        flash = threading.Thread(target=self.flashFirmware(firmwareFile))
+        flash.start()
+
+    def verifyFirmware(self, firmwareFile):
         try:
-            self.console.insert(tk.END, '\nVerifying Mesa firmware...\n', 'cyan')
             verify = ['sudo', self.mesaFlash, '--device', '5i25', '--verify', firmwareFile]
-            verifyFirmware = check_output(verify)
-            result = verifyFirmware.wait()
+            exceute = Popen(verify)
+            result = execute.wait()
             if result == 0:
                 self.console.insert(tk.END, 'Firmware matches, no flash required\n', 'cyan')
-                return
+                return False
             else:
                 self.console.insert(tk.END, 'Firmware differs, flash required\n', 'cyan')
+                return True
         except Exception as e:
             self.console.insert(tk.END, '\nFIRMWARE VERIFICATION WAS UNSUCCESSFUL\n', 'red')
             self.console.insert(tk.END, '\nThe following error occured while verifying the firmware:\n\n{}'.format(e), 'red')
-            return
+            return False
+
+    def flashFirmware(self, firmwareFile):
         try:
-            self.console.insert(tk.END, '\nFlashing Mesa firmware...\n', 'cyan')
             flash = ['sudo', self.mesaFlash, '--device', '5i25', '--write', firmwareFile]
-            flashFirmware = check_output(flash)
-            #TODO: verify this is necessary
-            while flashFirmware.poll() == None:
-                time.sleep(0.2)
+            flashFirmware = Popen(flash)
             result = flashFirmware.wait()
-            self.console.insert(tk.END, 'Flash successful with the following message:\n\n{}'.format(result), 'cyan')
+            self.console.insert(tk.END, 'Firmware flash successful!\n\n', 'cyan')
         except Exception as e:
             self.console.insert(tk.END, '\nFIRMWARE FLASH WAS UNSUCCESSFUL\n', 'red')
             self.console.insert(tk.END, '\nThe following error occured while flashing the firmware:\n\n{}'.format(e), 'red')
