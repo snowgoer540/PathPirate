@@ -1,5 +1,3 @@
-#!/usr/bin/python
-
 '''
 pathpirate is a script that provides automated configuration changes to
 Tormach's PathPilot.
@@ -20,11 +18,18 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 '''
-
-import Tkinter as tk
-import tkFileDialog
-import tkSimpleDialog
-from subprocess import Popen, PIPE
+import sys
+if sys.version_info[0] > 2:
+    import tkinter as tk
+    import tkinter.filedialog as tkFileDialog
+    import tkinter.simpledialog as tkSimpleDialog
+    import tkinter.messagebox as tkMessageBox
+else:
+    import Tkinter as tk
+    import tkFileDialog
+    import tkSimpleDialog
+    import tkMessageBox
+from subprocess import Popen, PIPE, check_output, STDOUT
 from shutil import copy
 import socket
 import os
@@ -45,7 +50,8 @@ class PathPirate:
         xCoord = int((screenWidth/2) - (winWidth/2))
         yCoord = int((screenHeight/2) - (winHeight/2))
         self.main.geometry('{}x{}+{}+{}'.format(winWidth, winHeight, xCoord, yCoord))
-        self.main.attributes('-topmost',True)
+        # self.main.attributes('-topmost',True)
+        self.main.protocol('WM_DELETE_WINDOW', self.exitPathPirate)
 
         # add frames to window
         self.buttonFrame = tk.Frame(self.main)
@@ -56,13 +62,13 @@ class PathPirate:
         self.consoleFrame.pack(anchor=tk.NW, fill=tk.BOTH, expand=True)
 
         # set up buttons
-        self.b0 = tk.Button(self.buttonFrame, text='GET\nDIRECTORY', command=self.openfile, height=2, padx=5)
+        self.b0 = tk.Button(self.buttonFrame, text='PREVIOUS\nVERSION', command=self.openFile, height=2, padx=5)
         self.b0.pack(side=tk.LEFT, fill=tk.X, expand=True)
         self.b0['state'] = 'disabled'
-        self.b1 = tk.Button(self.buttonFrame, text='COMPARE\nINI', command=lambda:self.oldVsNew('INI'), height=2, padx=5)
+        self.b1 = tk.Button(self.buttonFrame, text='COMPARE\nINI', command=lambda:self.compare('INI'), height=2, padx=5)
         self.b1.pack(side=tk.LEFT, fill=tk.X, expand=True)
         self.b1['state'] = 'disabled'
-        self.b2 = tk.Button(self.buttonFrame, text='COMPARE\nHAL', command=lambda:self.oldVsNew('HAL'), height=2, padx=5)
+        self.b2 = tk.Button(self.buttonFrame, text='COMPARE\nHAL', command=lambda:self.compare('HAL'), height=2, padx=5)
         self.b2.pack(side=tk.LEFT, fill=tk.X, expand=True)
         self.b2['state'] = 'disabled'
         self.b3 = tk.Button(self.buttonFrame, text='ADD\nHALSHOW', command=self.addHalshow, height=2, padx=5)
@@ -77,7 +83,7 @@ class PathPirate:
         self.b6.pack(side=tk.LEFT, fill=tk.X, expand=True)
         self.b7 = tk.Button(self.buttonFrame, text='REVERT\nALL', command=self.revertAll, height=2, padx=5)
         self.b7.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        self.b8 = tk.Button(self.buttonFrame, text='EXIT', command=self.main.destroy, height=2, padx=5)
+        self.b8 = tk.Button(self.buttonFrame, text='EXIT', command=self.exitPathPirate, height=2, padx=5)
         self.b8.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
         # set up output text boxes
@@ -92,6 +98,9 @@ class PathPirate:
         self.console.tag_configure('green', foreground='green')
         self.console.tag_configure('orange', foreground='orange')
         self.console.tag_configure('red', foreground='red')
+        self.console.tag_configure('cyan', foreground='cyan')
+        self.console.tag_configure('white', foreground='white')
+        self.previousVersionInfo.tag_configure('cyan', foreground='cyan')
 
         # add scroll bar to console
         self.scrollBar = tk.Scrollbar(self.consoleFrame, command=self.console.yview, width=15)
@@ -113,7 +122,7 @@ class PathPirate:
         self.previousVersionInfo.bind('<Button-5>', lambda e: 'break')
 
         # allow right click to cut, and copy
-        self.console.bind("<Button-3>", self.rightClick)
+        self.console.bind('<Button-3>', self.rightClick)
 
         # call a filedialog with bad option intentionally so there is an instance to
         # be able to set the options to hide hidden directories by default
@@ -134,17 +143,23 @@ class PathPirate:
         self.rapidPath = os.path.join(self.currentDir, 'files/MAXVEL_100.jpg')
         self.halshowPath = os.path.join(self.currentDir, 'files/halshow.tcl')
         self.cbuttonPath = os.path.join(self.currentDir, 'files/cbutton.tcl')
-        self.user = os.path.expanduser('~')
-        self.sourcePath = os.path.join(self.user, 'tmc/tcl/bin')
-        self.scriptFile = os.path.join(self.user, 'tmc/bin/halshow')
-        self.new = os.readlink(os.path.join(self.user, 'tmc'))
-        self.currentIni = os.path.join(self.new, 'configs/tormach_mill/tormach_mill_base.ini')
-        self.currentHal = os.path.join(self.new, 'configs/tormach_mill/tormach_mill_mesa.hal')
-        self.mesaPath = os.path.join(self.new, 'mesa')
-        self.uiCommon = os.path.join(self.new, 'python/ui_common.py')
-        self.hal1 = os.path.join(self.new, 'configs/common/operator_console_controls_3axis.hal')
-        self.hal2 = os.path.join(self.new, 'configs/common/operator_console_controls_4axis.hal')
-        self.velPath = os.path.join(self.new, 'python/images/MAXVEL_100.jpg')
+        self.home = os.getenv('HOME')
+        self.tmc = os.path.join(self.home, 'tmc')
+        self.sourcePath = os.path.join(self.tmc, 'tcl/bin')
+        self.scriptFile = os.path.join(self.tmc, 'bin/halshow')
+        self.currentIni = os.path.join(self.tmc, 'configs/tormach_mill/tormach_mill_base.ini')
+        self.currentHal = os.path.join(self.tmc, 'configs/tormach_mill/tormach_mill_mesa.hal')
+        self.mesaPath = os.path.join(self.tmc, 'mesa')
+        self.mesaFlash = os.path.join(self.tmc, 'bin/mesaflash')
+        self.mesaNewFirmware = os.path.join(self.mesaPath, '5i25_t2_7i85s_dpll.bit')
+        self.mesaOldFirmware = os.path.join(self.mesaPath, 'tormach_mill3.bit')
+        self.uiCommon = os.path.join(self.tmc, 'python/ui_common.py')
+        self.hal1 = os.path.join(self.tmc, 'configs/common/operator_console_controls_3axis.hal')
+        self.hal2 = os.path.join(self.tmc, 'configs/common/operator_console_controls_4axis.hal')
+        self.velPath = os.path.join(self.tmc, 'python/images/MAXVEL_100.jpg')
+
+        # set restart flag false
+        self.restartRequired = False
 
         # get current version and machine info
         self.getVersion()
@@ -155,25 +170,21 @@ class PathPirate:
     # Allows a user to right click to copy paste in the console text box
     def rightClick(self, event=None):
         menu = tk.Menu(self.main, tearoff=0)
-        menu.add_command(label="Cut", command=lambda: self.console.event_generate("<<Cut>>"))
-        menu.add_command(label="Copy", command=lambda: self.console.event_generate("<<Copy>>"))
+        menu.add_command(label='Cut', command=lambda: self.console.event_generate('<<Cut>>'))
+        menu.add_command(label='Copy', command=lambda: self.console.event_generate('<<Copy>>'))
         menu.tk_popup(event.x_root, event.y_root)
 
     # Shows the directory chooser for picking previous and current directories
-    def openfile(self, event=None):
+    def openFile(self, event=None):
         self.b1['state'] = 'disabled'
         self.b2['state'] = 'disabled'
         self.old = tkFileDialog.askdirectory(
-                initialdir=self.user,
+                initialdir=self.home,
                 mustexist=True,
                 title='Select PREVIOUS Version Folder (v2.X.X)')
         if not self.old:
             self.previousVersionInfo.delete(1.0, tk.END)
             self.previousVersionInfo.insert(tk.END, 'PREVIOUS directory selection is required')
-            return
-        if self.old == self.new:
-            self.previousVersionInfo.delete(1.0, tk.END)
-            self.previousVersionInfo.insert(tk.END, 'Old and New directories are the same, please select again')
             return
         test = self.old.split('/')
         if not 'v2' in test[len(test)-1]:
@@ -188,7 +199,7 @@ class PathPirate:
         self.b2['state'] = 'normal'
 
     # Compares between chosen configuration files
-    def oldVsNew(self, extension, event=None):
+    def compare(self, extension, event=None):
         oldMod = False
         missing = False
         self.console.insert(tk.END, '\n------------------\nCOMPARING {} FILE\n------------------\n'.format(extension.upper()))
@@ -207,8 +218,8 @@ class PathPirate:
             else:
                 oldFile = os.path.join(self.old, 'configs/tormach_mill/tormach_mill_base.ini')
         if oldMod:
-            self.console.insert(tk.END, '{} - PREVIOUSLY MODIFIED {} FILE DETECTED\n'.format(self.previous, extension))
-            self.console.insert(tk.END, 'Using backup {} file to compare for less cluttered results\n\n'.format(extension))
+            self.console.insert(tk.END, 'PREVIOUS ({}) - MODIFIED {} FILE DETECTED\n'.format(self.previous, extension))
+            self.console.insert(tk.END, 'Using backup {} file to compare against current version\n\n'.format(extension))
             self.console.see(tk.END)
         for file in [oldFile, newFile]:
             if not os.path.exists(file):
@@ -222,17 +233,17 @@ class PathPirate:
             previous = previous.read()
             current = current.read()
         if 'PathPirate' in current:
-            self.console.insert(tk.END, '{} - MODIFIED {} FILE DETECTED\n'.format(self.current, extension))
-            self.console.insert(tk.END, 'Using compare on unmodified config files may make changes more apparent\n\n')
+            self.console.insert(tk.END, 'CURRENT ({}) - MODIFIED {} FILE DETECTED\n\n'.format(self.current, extension))
+            # self.console.insert(tk.END, 'Using compare on unmodified config files may make changes more apparent\n\n')
             self.console.see(tk.END)
         if previous == current:
             self.console.insert(tk.END, 'No changes present (the files are the same)\n')
             self.console.see(tk.END)
             return
-        self.console.insert(tk.END, 'The following changes exist between versions:\n')
+        self.console.insert(tk.END, 'The following changes exist between {} files:\n'.format(extension))
         previous = previous.strip().splitlines()
         current = current.strip().splitlines()
-        #credit for help on this: https://stackoverflow.com/a/19128062
+        # credit for help on this: https://stackoverflow.com/a/19128062
         for line in difflib.unified_diff(previous, current, lineterm='', n=0):
             if line.startswith('---') or line.startswith('+++'):
                 continue
@@ -245,7 +256,7 @@ class PathPirate:
                     self.console.insert(tk.END, '{}: {}\n'.format(self.previous, line[1:]), 'red')
         self.console.see(tk.END)
 
-    # Adds halshow back to PathPilot so it can be called with "ADMIN HALSHOW" via MDI
+    # Adds halshow back to PathPilot so it can be called with 'ADMIN HALSHOW' via MDI
     def addHalshow(self, event=None):
         internet = self.internetStatus()
         self.console.insert(tk.END, '\n--------------\nADDING HALSHOW\n--------------\n')
@@ -255,13 +266,18 @@ class PathPirate:
         # attempt to grab latest halshow.tcl and cbutton.tcl from the linuxCNC master repository
         if internet:
             self.console.insert(tk.END, 'Internet connection found - Attempting to pull latest files from LinuxCNC master repository\n')
-            self.console.insert(tk.END, 'Previous versions will be overwritten\n')
+            self.console.insert(tk.END, '(Previous versions will be overwritten)\n\n')
             try:
-                Popen('wget --quiet -O {}/halshow.tcl https://raw.github.com/LinuxCNC/linuxcnc/master/tcl/bin/halshow.tcl'.format(self.sourcePath), shell=True)
-                Popen('wget --quiet -O {}/cbutton.tcl https://raw.github.com/LinuxCNC/linuxcnc/master/tcl/bin/cbutton.tcl'.format(self.sourcePath), shell=True)
+                # check for wget
+                test = check_output(['wget', '--version'], stderr=STDOUT)
+                # attempt to pull files from github
+                output = check_output('wget --quiet -O {}/halshow.tcl https://raw.github.com/LinuxCNC/linuxcnc/master/tcl/bin/halshow.tcl'.format(self.sourcePath), shell=True, stderr=STDOUT)
+                output1 = check_output('wget --quiet -O {}/cbutton.tcl https://raw.github.com/LinuxCNC/linuxcnc/master/tcl/bin/cbutton.tcl'.format(self.sourcePath), shell=True, stderr=STDOUT)
             except Exception as e:
-                self.console.insert(tk.END, 'The following error occurred while pulling Halshow files from github repository:\n\n{}'.format(e), 'red')
-                self.console.insert(tk.END, 'Attempting to copy local files instead\n')
+                self.console.insert(tk.END, 'The following error occurred while attempting to pull Halshow files from github repository:\n\n{}\n\n'.format(e), 'red')
+                self.console.insert(tk.END, 'There may be an internet issue, or wget may not be installed\n\n', 'red')
+                self.console.insert(tk.END, 'wget can be installed by entering "sudo apt-get install wget" in a terminal window\n\n', 'cyan')
+                self.console.insert(tk.END, 'Attempting to copy local files instead...\n\n')
                 success = self.addHalshowCopy()
                 if not success:
                     return
@@ -308,7 +324,7 @@ class PathPirate:
     # Checks to see if the computer has an active internet connection
     def internetStatus(self):
         try:
-            s = socket.create_connection(("www.google.com", 80))
+            s = socket.create_connection(('www.google.com', 80))
             if s is not None:
                 s.close
             return True
@@ -317,8 +333,9 @@ class PathPirate:
 
     # Converts the MAX VEL slider to RAPID since having a MAX VEL slider makes no sense
     def convertSlider(self, event=None):
-        self.console.insert(tk.END, '\n----------------------------------------\nREMOVING MAX VEL AND ADDING RAPID SLIDER\n----------------------------------------\n')
+        self.console.insert(tk.END, '\n---------------------------------------\nCONVERTING SLIDER FROM MAX VEL TO RAPID\n---------------------------------------\n')
         missing = False
+        change = False
         for file in [self.uiCommon, self.hal1, self.hal2, self.velPath, self.rapidPath]:
             if not os.path.exists(file):
                 self.console.insert(tk.END, 'The following required file is missing: {}\n'.format(file), 'red')
@@ -346,18 +363,23 @@ class PathPirate:
                 file.truncate()
                 file.write(text)
                 self.console.insert(tk.END, '{} has been modified\n'.format(modFile))
+                change = True
         with open (self.velPath, 'rb') as originalImage:
             original = originalImage.read()
         with open (self.rapidPath, 'rb') as modImage:
             modified = modImage.read()
         if original == modified:
-            self.console.insert(tk.END, 'Image file was previously replaced\n')
+            self.console.insert(tk.END, 'Image file was previously replaced\n\n')
         else:
             tempFile = '{}.bak'.format(self.velPath)
             if not os.path.exists(tempFile):
                 copy(self.velPath, tempFile)
             copy(self.rapidPath, self.velPath)
             self.console.insert(tk.END, 'Image file copied to: {}\n'.format(self.velPath))
+            change = True
+        if change:
+            self.restartRequired = True
+            self.console.insert(tk.END, '\nA RESTART IS REQUIRED FOR CHANGES TO TAKE EFFECT!\n', 'white')
         self.console.see(tk.END)
 
     # Added to center the tkSimpleDialog.askinteger box. Help from: https://stackoverflow.com/a/69904742 (and the tkSimpleDialog source code)
@@ -387,13 +409,14 @@ class PathPirate:
 
     # Adds an encoder to an 1100-3 machine (that is using a Mesa 7i85s card)
     def addEncoder(self, event=None):
+        change = False
+        missing = False
         self.console.insert(tk.END, '\n---------------\nADDING ENCODER\n---------------\n')
         scale = self.askinteger(title='ENCODER SCALE', prompt='Enter the encoder scale:', initialvalue='-1440', parent=self.main)
         if scale is None:
             self.console.insert(tk.END, 'Encoder scale is required\n')
             self.console.see(tk.END)
             return
-        missing = False
         for file in [self.currentHal, self.currentIni, self.newBin]:
             if not os.path.exists(file):
                 self.console.insert(tk.END, 'The following required file is missing: {}\n'.format(file), 'red')
@@ -404,21 +427,25 @@ class PathPirate:
             return
         with open(self.currentHal, 'r+') as file:
             text = file.read()
-            if 'PathPirate' in text:
-                self.console.insert(tk.END, 'Modifications to {} are already present\n'.format(self.currentHal))
+            if '#The following encoder lines were added by PathPirate' in text:
+                if 'setp hm2_5i25.0.encoder.00.scale {}'.format(scale) in text:
+                    self.console.insert(tk.END, 'Modifications to {} are already present\n'.format(self.currentHal))
+                else:
+                    for line in text.splitlines():
+                        if 'setp hm2_5i25.0.encoder.00.scale' in line:
+                            text = text.replace(line, 'setp hm2_5i25.0.encoder.00.scale {}'.format(scale))
+                            file.seek(0)
+                            file.truncate()
+                            file.write(text)
+                            change = True
+                            self.console.insert(tk.END, '{} has been modified\n'.format(self.currentHal))
             else:
                 tempFile = '{}.bak'.format(self.currentHal)
                 if not os.path.exists(tempFile):
                     copy(self.currentHal, tempFile)
-                # TODO: Verify --> we shouldnt need to comment out the dpll timer lines anymore with the new .bit file Peter made.
-                # text = text.replace('setp hm2_[HOSTMOT2](BOARD).0.dpll.01.timer-us [HOSTMOT2](DPLL_TIMER_US)', \
-                # '#setp hm2_[HOSTMOT2](BOARD).0.dpll.01.timer-us [HOSTMOT2](DPLL_TIMER_US) #Changed by PathPirate')
-                # text = text.replace('setp hm2_[HOSTMOT2](BOARD).0.stepgen.timer-number  [HOSTMOT2](DPLL_TIMER_NUMBER)', \
-                # '#setp hm2_[HOSTMOT2](BOARD).0.stepgen.timer-number  [HOSTMOT2](DPLL_TIMER_NUMBER) #Changed by PathPirate')
-                # text = text.replace('setp hm2_[HOSTMOT2](BOARD).0.encoder.timer-number  [HOSTMOT2](DPLL_TIMER_NUMBER)', \
-                # '#setp hm2_[HOSTMOT2](BOARD).0.encoder.timer-number  [HOSTMOT2](DPLL_TIMER_NUMBER) #Changed by PathPirate')
                 text += ('\n#####################################################################\n')
                 text += ('#The following encoder lines were added by PathPirate\n\n')
+                text += ('unlinkp motion.spindle-speed-in\n')
                 text += ('net spindle-position hm2_5i25.0.encoder.00.position => motion.spindle-revs\n')
                 text += ('net spindle-velocity hm2_5i25.0.encoder.00.velocity => motion.spindle-speed-in\n')
                 text += ('net spindle-index-enable hm2_5i25.0.encoder.00.index-enable <=> motion.spindle-index-enable\n')
@@ -426,28 +453,36 @@ class PathPirate:
                 file.seek(0)
                 file.truncate()
                 file.write(text)
+                change = True
                 self.console.insert(tk.END, '{} has been modified\n'.format(self.currentHal))
         tempFile = '{}.bak'.format(self.currentIni)
         if not os.path.exists(tempFile):
             copy(self.currentIni, tempFile)
         with open(self.currentIni, 'r+') as file:
             text = file.read()
-            if not 'DRIVER_PARAMS="config= num_encoders=4 num_pwmgens=1 num_3pwmgens=0 num_stepgens=5 " #Changed by PathPirate' in text or not 'BITFILE0=mesa/5i25_t2_7i85s_dpll.bit #Changed by PathPirate' in text:
+            if not '#Encoder added by PathPirate' in text:
                 text = text.replace('DRIVER_PARAMS="config= num_encoders=2 num_pwmgens=1 num_3pwmgens=0 num_stepgens=5 "', \
-                'DRIVER_PARAMS="config= num_encoders=4 num_pwmgens=1 num_3pwmgens=0 num_stepgens=5 " #Changed by PathPirate')
+                'DRIVER_PARAMS="config= num_encoders=4 num_pwmgens=1 num_3pwmgens=0 num_stepgens=5 "')
                 text = text.replace('BITFILE0=mesa/tormach_mill3.bit', \
-                'BITFILE0=mesa/5i25_t2_7i85s_dpll.bit #Changed by PathPirate')
+                'BITFILE0=mesa/5i25_t2_7i85s_dpll.bit')
+                text += ('#Encoder added by PathPirate')
                 file.seek(0)
                 file.truncate()
                 file.write(text)
+                change = True
                 self.console.insert(tk.END, '{} has been modified\n'.format(self.currentIni))
             else:
-                self.console.insert(tk.END, 'Necessary modifications to {} were already present\n'.format(self.currentIni))
+                self.console.insert(tk.END, 'Necessary modifications to {} are already present\n'.format(self.currentIni))
         if not os.path.exists(os.path.join(self.mesaPath, '5i25_t2_7i85s_dpll.bit')):
             copy(self.newBin, self.mesaPath)
+            change = True
             self.console.insert(tk.END, '{} has been copied to {}\n'.format(self.newBin, self.mesaPath))
+            self.flashFirmware(self.mesaNewFirmware)
         else:
             self.console.insert(tk.END, '5i25_t2_7i85s_dpll.bit already exists in {}\n'.format(self.mesaPath))
+        if change:
+            self.restartRequired = True
+            self.console.insert(tk.END, '\nA RESTART IS REQUIRED FOR CHANGES TO TAKE EFFECT!\n', 'white')
         self.console.see(tk.END)
 
     # Adds ClearPath Servos to an 1100-3 machine (that is using a Mesa 7i85s card)
@@ -459,6 +494,7 @@ class PathPirate:
         zSection = False
         putSmoothing = False
         missing = False
+        change = False
         for file in [self.currentHal, self.currentIni, self.newBin, self.mesaPath]:
             if not os.path.exists(file):
                 self.console.insert(tk.END, 'The following required file is missing: {}\n'.format(file), 'red')
@@ -470,74 +506,81 @@ class PathPirate:
         tempFile = '{}.bak'.format(self.currentIni)
         if not os.path.exists(tempFile):
             copy(self.currentIni, tempFile)
-        with open(tempFile, 'r') as inFile:
-            with open (self.currentIni, 'w') as outFile:
-                for line in inFile:
-                    if line.startswith('[HOSTMOT2]'):
-                        hostmotSection = True
-                    elif line.startswith('[TRAJ]'):
-                        trajSection = True
-                    elif line.startswith('[AXIS_0]') or line.startswith('[AXIS_1]'):
-                        xySection = True
-                        putSmoothing = True
-                    elif line.startswith('[AXIS_2]'):
-                        zSection = True
-                        putSmoothing = True
-                    elif hostmotSection:
-                        line = line.replace('DRIVER_PARAMS="config= num_encoders=2 num_pwmgens=1 num_3pwmgens=0 num_stepgens=5 "', \
-                        'DRIVER_PARAMS="config= num_encoders=4 num_pwmgens=1 num_3pwmgens=0 num_stepgens=5 " #Changed by PathPirate')
-                        line = line.replace('BITFILE0=mesa/tormach_mill3.bit', \
-                        'BITFILE0=mesa/5i25_t2_7i85s_dpll.bit #Changed by PathPirate')
-                        if line.startswith('['):
-                            hostmotSection = False
-                    elif trajSection:
-                        line = line.replace('MAX_VELOCITY = 3.0', 'MAX_VELOCITY = 8.043 #Changed by PathPirate')
-                        if line.startswith('['):
-                            trajSection = False
-                    elif xySection:
-                        line = line.replace('# 110 in/min', '# 300 in/min #Changed by PathPirate')
-                        line = line.replace('MAX_VELOCITY = 1.833', 'MAX_VELOCITY = 5.00 #Changed by PathPirate')
-                        line = line.replace('MAX_ACCELERATION = 15.0', 'MAX_ACCELERATION = 30.0 #Changed by PathPirate')
-                        line = line.replace('STEPGEN_MAX_VEL = 2.2', 'STEPGEN_MAX_VEL = 6.0 #Changed by PathPirate')
-                        line = line.replace('STEPGEN_MAXACCEL = 37.5', 'STEPGEN_MAXACCEL = 75 #Changed by PathPirate')
-                        line = line.replace('MAX_JOG_VELOCITY_UPS = 1.833', 'MAX_JOG_VELOCITY_UPS = 3.333 #Changed by PathPirate')
-                        line = line.replace('# nanoseconds', '#nanosecs .. for ClearPath #Changed by PathPirate')
-                        line = line.replace('DIRSETUP = 10000', 'DIRSETUP = 2000 #Changed by PathPirate')
-                        line = line.replace('DIRHOLD = 10000', 'DIRHOLD = 2000 #Changed by PathPirate')
-                        line = line.replace('STEPLEN = 8000', 'STEPLEN = 2000 #Changed by PathPirate')
-                        line = line.replace('STEPSPACE  = 5000', 'STEPSPACE  = 2000 #Changed by PathPirate')
-                        line = line.replace('SCALE = 10000.0', 'SCALE = 16000.0 #Changed by PathPirate')
-                        if 'HOME_SEQUENCE' in line and putSmoothing:
-                                line += '\nSMOOTHING_WINDOW = 0.0056 #Changed by PathPirate\n'
-                                putSmoothing = False
-                        if line.startswith('['):
-                            xySection = False
-                        elif zSection:
-                            line = line.replace('# 90 in/min', '# 230 in/min #Changed by PathPirate')
-                            line = line.replace('MAX_VELOCITY = 1.500', 'MAX_VELOCITY = 3.8333 #Changed by PathPirate')
-                            line = line.replace('MAX_ACCELERATION = 15.0', 'MAX_ACCELERATION = 19.167 #Changed by PathPirate')
-                            line = line.replace('STEPGEN_MAX_VEL = 1.8', 'STEPGEN_MAX_VEL = 4.600 #Changed by PathPirate')
-                            line = line.replace('STEPGEN_MAXACCEL = 37.5', 'STEPGEN_MAXACCEL = 47.9175 #Changed by PathPirate')
-                            line = line.replace('MAX_JOG_VELOCITY_UPS = 1.5', 'MAX_JOG_VELOCITY_UPS = 3.0 #Changed by PathPirate')
-                            line = line.replace('# nanoseconds', '#nanosecs .. for ClearPath #Changed by PathPirate')
-                            line = line.replace('DIRSETUP = 10000', 'DIRSETUP = 2000 #Changed by PathPirate')
-                            line = line.replace('DIRHOLD = 10000', 'DIRHOLD = 2000 #Changed by PathPirate')
-                            line = line.replace('STEPLEN = 8000', 'STEPLEN = 2000 #Changed by PathPirate')
-                            line = line.replace('STEPSPACE  = 5000', 'STEPSPACE  = 2000 #Changed by PathPirate')
-                            line = line.replace('SCALE = -10000.0', 'SCALE = -16000.0 #Changed by PathPirate')
+        with open(self.currentIni, 'r') as file:
+            text=file.read()
+        if not '#Servos added by PathPirate' in text:
+            with open(tempFile, 'r') as inFile:
+                with open (self.currentIni, 'w') as outFile:
+                    for line in inFile:
+                        if line.startswith('[HOSTMOT2]'):
+                            hostmotSection = True
+                        elif line.startswith('[TRAJ]'):
+                            trajSection = True
+                        elif line.startswith('[AXIS_0]') or line.startswith('[AXIS_1]'):
+                            xySection = True
+                            putSmoothing = True
+                        elif line.startswith('[AXIS_2]'):
+                            zSection = True
+                            putSmoothing = True
+                        elif hostmotSection:
+                            line = line.replace('DRIVER_PARAMS="config= num_encoders=2 num_pwmgens=1 num_3pwmgens=0 num_stepgens=5 "', \
+                            'DRIVER_PARAMS="config= num_encoders=4 num_pwmgens=1 num_3pwmgens=0 num_stepgens=5 "')
+                            line = line.replace('BITFILE0=mesa/tormach_mill3.bit', \
+                            'BITFILE0=mesa/5i25_t2_7i85s_dpll.bit')
+                            if line.startswith('['):
+                                hostmotSection = False
+                        elif trajSection:
+                            line = line.replace('MAX_VELOCITY = 3.0', 'MAX_VELOCITY = 8.043')
+                            if line.startswith('['):
+                                trajSection = False
+                        elif xySection:
+                            line = line.replace('# 110 in/min', '# 300 in/min')
+                            line = line.replace('MAX_VELOCITY = 1.833', 'MAX_VELOCITY = 5.00')
+                            line = line.replace('MAX_ACCELERATION = 15.0', 'MAX_ACCELERATION = 30.0')
+                            line = line.replace('STEPGEN_MAX_VEL = 2.2', 'STEPGEN_MAX_VEL = 6.0')
+                            line = line.replace('STEPGEN_MAXACCEL = 37.5', 'STEPGEN_MAXACCEL = 75')
+                            line = line.replace('MAX_JOG_VELOCITY_UPS = 1.833', 'MAX_JOG_VELOCITY_UPS = 3.333')
+                            line = line.replace('# nanoseconds', '#nanosecs .. for ClearPath')
+                            line = line.replace('DIRSETUP = 10000', 'DIRSETUP = 2000')
+                            line = line.replace('DIRHOLD = 10000', 'DIRHOLD = 2000')
+                            line = line.replace('STEPLEN = 8000', 'STEPLEN = 2000')
+                            line = line.replace('STEPSPACE  = 5000', 'STEPSPACE  = 2000')
+                            line = line.replace('SCALE = 10000.0', 'SCALE = 16000.0')
                             if 'HOME_SEQUENCE' in line and putSmoothing:
-                                    line += '\nSMOOTHING_WINDOW = 0.0056 #Changed by PathPirate\n'
+                                    line += '\nSMOOTHING_WINDOW = 0.0056\n'
                                     putSmoothing = False
                             if line.startswith('['):
-                                zSection = False
-                    outFile.write(line)
-        self.console.insert(tk.END, '{} has been modified\n'.format(self.currentIni))
+                                xySection = False
+                            elif zSection:
+                                line = line.replace('# 90 in/min', '# 230 in/min')
+                                line = line.replace('MAX_VELOCITY = 1.500', 'MAX_VELOCITY = 3.8333')
+                                line = line.replace('MAX_ACCELERATION = 15.0', 'MAX_ACCELERATION = 19.167')
+                                line = line.replace('STEPGEN_MAX_VEL = 1.8', 'STEPGEN_MAX_VEL = 4.600')
+                                line = line.replace('STEPGEN_MAXACCEL = 37.5', 'STEPGEN_MAXACCEL = 47.9175')
+                                line = line.replace('MAX_JOG_VELOCITY_UPS = 1.5', 'MAX_JOG_VELOCITY_UPS = 3.0')
+                                line = line.replace('# nanoseconds', '#nanosecs .. for ClearPath')
+                                line = line.replace('DIRSETUP = 10000', 'DIRSETUP = 2000')
+                                line = line.replace('DIRHOLD = 10000', 'DIRHOLD = 2000')
+                                line = line.replace('STEPLEN = 8000', 'STEPLEN = 2000')
+                                line = line.replace('STEPSPACE  = 5000', 'STEPSPACE  = 2000')
+                                line = line.replace('SCALE = -10000.0', 'SCALE = -16000.0')
+                                if 'HOME_SEQUENCE' in line and putSmoothing:
+                                        line += '\nSMOOTHING_WINDOW = 0.0056\n'
+                                        putSmoothing = False
+                                if line.startswith('['):
+                                    zSection = False
+                        outFile.write(line)
+                    outFile.write('#Servos added by PathPirate\n')
+                change = True
+                self.console.insert(tk.END, '{} has been modified\n'.format(self.currentIni))
+        else:
+            self.console.insert(tk.END, 'Modifications to {} are already present\n'.format(self.currentIni))
         tempFile = '{}.bak'.format(self.currentHal)
         if not os.path.exists(tempFile):
             copy(self.currentHal, tempFile)
         with open(self.currentHal, 'r+') as file:
             text = file.read()
-            if not 'loadrt not names=prog-not-idle,axis3-not-homing,x-homing-not2,x-fault-not,y-fault-not #Changed by PathPirate' in text:
+            if not '#The following ClearPath servo lines were added by PathPirate' in text:
                 text = text.replace('loadrt not names=prog-not-idle,axis3-not-homing,x-homing-not2', \
                 'loadrt not names=prog-not-idle,axis3-not-homing,x-homing-not2,x-fault-not,y-fault-not #Changed by PathPirate')
                 text += ('\n#####################################################################\n')
@@ -552,33 +595,59 @@ class PathPirate:
                 file.seek(0)
                 file.truncate()
                 file.write(text)
+                change = True
                 self.console.insert(tk.END, '{} has been modified\n'.format(self.currentHal))
             else:
                 self.console.insert(tk.END, 'Modifications to {} are already present\n'.format(self.currentHal))
         if not os.path.exists(os.path.join(self.mesaPath, '5i25_t2_7i85s_dpll.bit')):
             copy(self.newBin, self.mesaPath)
+            change = True
             self.console.insert(tk.END, '{} has been copied to {}\n'.format(self.newBin, self.mesaPath))
+            self.flashFirmware(self.mesaNewFirmware)
         else:
             self.console.insert(tk.END, '5i25_t2_7i85s_dpll.bit already exists in {}\n'.format(self.mesaPath))
+        if change:
+            self.restartRequired = True
+            self.console.insert(tk.END, '\nA RESTART IS REQUIRED FOR CHANGES TO TAKE EFFECT!\n', 'white')
         self.console.see(tk.END)
 
     # Revert any changes that have occurred by restoring backup files/deleting new files
     def revertAll(self, event=None):
-        mesaBin = os.path.join(self.mesaPath, '5i25_t2_7i85s_dpll.bit')
+        change = False
+        halshow = False
         halshowPath = os.path.join(self.sourcePath, 'halshow.tcl')
         cbuttonPath = os.path.join(self.sourcePath, 'cbutton.tcl')
         try:
-            for file in [self.scriptFile, self.uiCommon, self.hal1, self.hal2, self.velPath, self.currentHal, self.currentIni]:
+            for file in [self.uiCommon, self.hal1, self.hal2, self.velPath, self.currentHal, self.currentIni]:
                 tempFile = '{}.bak'.format(file)
                 if os.path.exists(tempFile):
+                    change = True
                     copy(tempFile, file)
                     os.remove(tempFile)
-            for file in [mesaBin, halshowPath, cbuttonPath]:
+            if os.path.exists(self.mesaNewFirmware):
+                change = True
+                os.remove(self.mesaNewFirmware)
+                self.flashFirmware(self.mesaOldFirmware)
+            for file in [halshowPath, cbuttonPath]:
                 if os.path.exists(file):
+                    halshow = True
                     os.remove(file)
+            tempFile = '{}.bak'.format(self.scriptFile)
+            if os.path.exists(tempFile):
+                halshow = True
+                copy(tempFile, self.scriptFile)
+                os.remove(tempFile)
             if os.path.exists(self.sourcePath):
+                halshow = True
                 os.rmdir(self.sourcePath)
-            self.console.insert(tk.END, '\nAll changes to {} have been undone\n'.format(self.current))
+            if change:
+                self.restartRequired = True
+                self.console.insert(tk.END, '\nAll changes to {} have been undone\n'.format(self.current))
+                self.console.insert(tk.END, '\nA RESTART IS REQUIRED FOR CHANGES TO TAKE EFFECT!\n', 'white')
+            elif halshow:
+                self.console.insert(tk.END, '\nHalshow changes were removed\n')
+            else:
+                self.console.insert(tk.END, '\nThere were no changes in {} to revert\n'.format(self.current))
             self.console.see(tk.END)
         except Exception as e:
             self.console.insert(tk.END, '\nThe following system error has occured:\n\n{}'.format(e), 'red')
@@ -586,7 +655,7 @@ class PathPirate:
 
     # Show the user the latest version number
     def getVersion(self, event=None):
-        machineFile = os.path.join(self.user, 'machine.json')
+        machineFile = os.path.join(self.home, 'machine.json')
         if os.path.exists(machineFile):
             with open(machineFile, 'r') as jsonFile:
                 machineData = json.load(jsonFile)
@@ -600,10 +669,10 @@ class PathPirate:
         else:
             self.machineInfo.insert(tk.END, '{} is missing! Unable to proceed!\n'.format(machineFile))
             return
-        if not os.path.exists(self.new):
+        if not os.path.exists(self.tmc):
             self.currentVersionInfo.insert(tk.END, '~/tmc does not exist, is PathPilot installed?\n')
             return
-        versionFile = os.path.join(self.new, 'version.json')
+        versionFile = os.path.join(self.tmc, 'version.json')
         if os.path.exists(versionFile):
             with open(versionFile, 'r') as jsonFile:
                 versionData = json.load(jsonFile)
@@ -612,9 +681,48 @@ class PathPirate:
         else:
             self.currentVersionInfo.insert(tk.END, '{} is missing! Unable to proceed!\n'.format(versionFile))
             return
+        self.previousVersionInfo.insert(tk.END, 'To use the COMPARE feature, click PREVIOUS VERSION to select the previous version directory', 'cyan')
         self.b0['state'] = 'normal'
         self.b3['state'] = 'normal'
         self.b4['state'] = 'normal'
+
+    def flashFirmware(self, firmwareFile):
+        try:
+            self.console.insert(tk.END, '\nVerifying Mesa firmware...\n', 'cyan')
+            verify = ['sudo', self.mesaFlash, '--device', '5i25', '--verify', firmwareFile]
+            verifyFirmware = check_output(verify)
+            result = verifyFirmware.wait()
+            if result == 0:
+                self.console.insert(tk.END, 'Firmware matches, no flash required\n', 'cyan')
+                return
+            else:
+                self.console.insert(tk.END, 'Firmware differs, flash required\n', 'cyan')
+        except Exception as e:
+            self.console.insert(tk.END, '\nFIRMWARE VERIFICATION WAS UNSUCCESSFUL\n', 'red')
+            self.console.insert(tk.END, '\nThe following error occured while verifying the firmware:\n\n{}'.format(e), 'red')
+            return
+        try:
+            self.console.insert(tk.END, '\nFlashing Mesa firmware...\n', 'cyan')
+            flash = ['sudo', self.mesaFlash, '--device', '5i25', '--write', firmwareFile]
+            flashFirmware = check_output(flash)
+            #TODO: verify this is necessary
+            while flashFirmware.poll() == None:
+                time.sleep(0.2)
+            result = flashFirmware.wait()
+            self.console.insert(tk.END, 'Flash successful with the following message:\n\n{}'.format(result), 'cyan')
+        except Exception as e:
+            self.console.insert(tk.END, '\nFIRMWARE FLASH WAS UNSUCCESSFUL\n', 'red')
+            self.console.insert(tk.END, '\nThe following error occured while flashing the firmware:\n\n{}'.format(e), 'red')
+
+    def exitPathPirate(self, event=None):
+        if self.restartRequired:
+            restart = tkMessageBox.askquestion('REBOOT REQUIRED', 'Would you like to reboot now?', icon='question')
+            if restart == 'yes':
+                os.system('sudo reboot')
+            else:
+                self.main.destroy()
+        else:
+            self.main.destroy()
 
 if __name__ == '__main__':
     app = PathPirate()
