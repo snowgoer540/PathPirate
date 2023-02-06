@@ -413,6 +413,7 @@ class PathPirate:
     def addEncoder(self, event=None):
         change = False
         missing = False
+        mesa = False
         self.console.insert(tk.END, '\n---------------\nADDING ENCODER\n---------------\n')
         scale = self.askinteger(title='ENCODER SCALE', prompt='Enter the encoder scale:', initialvalue='-1440', parent=self.main)
         if scale is None:
@@ -478,11 +479,12 @@ class PathPirate:
         if not os.path.exists(os.path.join(self.mesaPath, '5i25_t2_7i85s_dpll.bit')):
             copy(self.newBin, self.mesaPath)
             change = True
+            mesa = True
             self.console.insert(tk.END, '{} has been copied to {}\n'.format(self.newBin, self.mesaPath))
-            self.flashFirmware(self.mesaNewFirmware)
+            self.verifyThread(self.mesaNewFirmware)
         else:
             self.console.insert(tk.END, '5i25_t2_7i85s_dpll.bit already exists in {}\n'.format(self.mesaPath))
-        if change:
+        if change and not mesa:
             self.restartRequired = True
             self.console.insert(tk.END, '\nA RESTART IS REQUIRED FOR CHANGES TO TAKE EFFECT!\n', 'white')
         self.console.see(tk.END)
@@ -497,6 +499,7 @@ class PathPirate:
         putSmoothing = False
         missing = False
         change = False
+        mesa = False
         for file in [self.currentHal, self.currentIni, self.newBin, self.mesaPath]:
             if not os.path.exists(file):
                 self.console.insert(tk.END, 'The following required file is missing: {}\n'.format(file), 'red')
@@ -604,11 +607,12 @@ class PathPirate:
         if not os.path.exists(os.path.join(self.mesaPath, '5i25_t2_7i85s_dpll.bit')):
             copy(self.newBin, self.mesaPath)
             change = True
+            mesa = True
             self.console.insert(tk.END, '{} has been copied to {}\n'.format(self.newBin, self.mesaPath))
-            self.flashFirmware(self.mesaNewFirmware)
+            self.verifyThread(self.mesaNewFirmware)
         else:
             self.console.insert(tk.END, '5i25_t2_7i85s_dpll.bit already exists in {}\n'.format(self.mesaPath))
-        if change:
+        if change and not mesa:
             self.restartRequired = True
             self.console.insert(tk.END, '\nA RESTART IS REQUIRED FOR CHANGES TO TAKE EFFECT!\n', 'white')
         self.console.see(tk.END)
@@ -629,7 +633,7 @@ class PathPirate:
             if os.path.exists(self.mesaNewFirmware):
                 change = True
                 os.remove(self.mesaNewFirmware)
-                self.flashFirmware(self.mesaOldFirmware)
+                self.verifyThread(self.mesaNewFirmware)
             for file in [halshowPath, cbuttonPath]:
                 if os.path.exists(file):
                     halshow = True
@@ -688,45 +692,49 @@ class PathPirate:
         self.b3['state'] = 'normal'
         self.b4['state'] = 'normal'
 
-    def flashThread(self, firmwareFile):
+    def verifyThread(self, firmwareFile):
         self.console.insert(tk.END, '\nVerifying Mesa firmware...\n', 'cyan')
         self.console.see(tk.END)
-        verify = threading.Thread(target=self.verifyFirmware(firmwareFile))
-        verify.start()
-        while verify.is_alive():
-            time.sleep(0.2)
-        if not verify:
-            return
+        t1 = threading.Thread(target=self.verifyFirmware, args=(firmwareFile,))
+        t1.start()
+
+    def flashThread(self, firmwareFile):
         self.console.insert(tk.END, '\nFlashing Mesa firmware...\n', 'cyan')
         self.console.see(tk.END)
-        flash = threading.Thread(target=self.flashFirmware(firmwareFile))
-        flash.start()
+        t2 = threading.Thread(target=self.flashFirmware, args=(firmwareFile,))
+        t2.start()
 
     def verifyFirmware(self, firmwareFile):
         try:
             verify = ['sudo', self.mesaFlash, '--device', '5i25', '--verify', firmwareFile]
-            exceute = Popen(verify)
-            result = execute.wait()
+            output = Popen(verify)
+            result = output.wait()
             if result == 0:
                 self.console.insert(tk.END, 'Firmware matches, no flash required\n', 'cyan')
-                return False
+                self.console.see(tk.END)
+                return
             else:
                 self.console.insert(tk.END, 'Firmware differs, flash required\n', 'cyan')
-                return True
+                self.console.see(tk.END)
         except Exception as e:
             self.console.insert(tk.END, '\nFIRMWARE VERIFICATION WAS UNSUCCESSFUL\n', 'red')
             self.console.insert(tk.END, '\nThe following error occured while verifying the firmware:\n\n{}'.format(e), 'red')
-            return False
+            self.console.see(tk.END)
+            return
+        self.flashThread(firmwareFile)
 
     def flashFirmware(self, firmwareFile):
         try:
             flash = ['sudo', self.mesaFlash, '--device', '5i25', '--write', firmwareFile]
-            flashFirmware = Popen(flash)
-            result = flashFirmware.wait()
+            output = Popen(flash)
+            reply = output.wait()
             self.console.insert(tk.END, 'Firmware flash successful!\n\n', 'cyan')
+            self.console.insert(tk.END, '\nA RESTART IS REQUIRED FOR CHANGES TO TAKE EFFECT!\n', 'white')
+            self.console.see(tk.END)
         except Exception as e:
             self.console.insert(tk.END, '\nFIRMWARE FLASH WAS UNSUCCESSFUL\n', 'red')
             self.console.insert(tk.END, '\nThe following error occured while flashing the firmware:\n\n{}'.format(e), 'red')
+            self.console.see(tk.END)
 
     def exitPathPirate(self, event=None):
         if self.restartRequired:
