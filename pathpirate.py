@@ -46,12 +46,13 @@ class PathPirate:
         self.main = tk.Tk()
         self.main.title('PathPirate Configurator v1.0 for Tormach Milling Machines')
         winWidth = 1000
-        winHeight = 1000
+        winHeight = 700
         screenWidth = self.main.winfo_screenwidth()
         screenHeight = self.main.winfo_screenheight()
         xCoord = int((screenWidth/2) - (winWidth/2))
         yCoord = int((screenHeight/2) - (winHeight/2))
         self.main.geometry('{}x{}+{}+{}'.format(winWidth, winHeight, xCoord, yCoord))
+        self.main.attributes('-zoomed', True)
         # self.main.attributes('-topmost',True)
         self.main.protocol('WM_DELETE_WINDOW', self.exitPathPirate)
 
@@ -97,6 +98,7 @@ class PathPirate:
         self.previousVersionInfo.pack(fill=tk.BOTH, expand=True)
         self.console = tk.Text(self.consoleFrame, padx=5, bg='black', fg='orange', highlightthickness=0)
         self.console.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.console.tag_configure('yellow', foreground='yellow')
         self.console.tag_configure('green', foreground='green')
         self.console.tag_configure('orange', foreground='orange')
         self.console.tag_configure('red', foreground='red')
@@ -153,8 +155,8 @@ class PathPirate:
         self.currentHal = os.path.join(self.tmc, 'configs/tormach_mill/tormach_mill_mesa.hal')
         self.mesaPath = os.path.join(self.tmc, 'mesa')
         self.mesaFlash = os.path.join(self.tmc, 'bin/mesaflash')
-        self.mesaNewFirmware = os.path.join(self.mesaPath, '5i25_t2_7i85s_dpll.bit')
-        self.mesaOldFirmware = os.path.join(self.mesaPath, 'tormach_mill3.bit')
+        self.newMesaFirmware = os.path.join(self.mesaPath, '5i25_t2_7i85s_dpll.bit')
+        self.oldMesaFirmware = os.path.join(self.mesaPath, 'tormach_mill3.bit')
         self.uiCommon = os.path.join(self.tmc, 'python/ui_common.py')
         self.hal1 = os.path.join(self.tmc, 'configs/common/operator_console_controls_3axis.hal')
         self.hal2 = os.path.join(self.tmc, 'configs/common/operator_console_controls_4axis.hal')
@@ -481,13 +483,14 @@ class PathPirate:
             change = True
             mesa = True
             self.console.insert(tk.END, '{} has been copied to {}\n'.format(self.newBin, self.mesaPath))
-            self.verifyThread(self.mesaNewFirmware)
         else:
             self.console.insert(tk.END, '5i25_t2_7i85s_dpll.bit already exists in {}\n'.format(self.mesaPath))
-        if change and not mesa:
+        if change:
             self.restartRequired = True
             self.console.insert(tk.END, '\nA RESTART IS REQUIRED FOR CHANGES TO TAKE EFFECT!\n', 'white')
         self.console.see(tk.END)
+        if mesa:
+            self.verifyThread(self.newMesaFirmware)
 
     # Adds ClearPath Servos to an 1100-3 machine (that is using a Mesa 7i85s card)
     def addServos(self, event=None):
@@ -609,18 +612,20 @@ class PathPirate:
             change = True
             mesa = True
             self.console.insert(tk.END, '{} has been copied to {}\n'.format(self.newBin, self.mesaPath))
-            self.verifyThread(self.mesaNewFirmware)
         else:
             self.console.insert(tk.END, '5i25_t2_7i85s_dpll.bit already exists in {}\n'.format(self.mesaPath))
-        if change and not mesa:
+        if change:
             self.restartRequired = True
             self.console.insert(tk.END, '\nA RESTART IS REQUIRED FOR CHANGES TO TAKE EFFECT!\n', 'white')
         self.console.see(tk.END)
+        if mesa:
+            self.verifyThread(self.newMesaFirmware)
 
     # Revert any changes that have occurred by restoring backup files/deleting new files
     def revertAll(self, event=None):
         change = False
         halshow = False
+        mesa = False
         halshowPath = os.path.join(self.sourcePath, 'halshow.tcl')
         cbuttonPath = os.path.join(self.sourcePath, 'cbutton.tcl')
         try:
@@ -630,10 +635,10 @@ class PathPirate:
                     change = True
                     copy(tempFile, file)
                     os.remove(tempFile)
-            if os.path.exists(self.mesaNewFirmware):
+            if os.path.exists(self.newMesaFirmware):
                 change = True
-                os.remove(self.mesaNewFirmware)
-                self.verifyThread(self.mesaNewFirmware)
+                mesa = True
+                os.remove(self.newMesaFirmware)
             for file in [halshowPath, cbuttonPath]:
                 if os.path.exists(file):
                     halshow = True
@@ -650,14 +655,17 @@ class PathPirate:
                 self.restartRequired = True
                 self.console.insert(tk.END, '\nAll changes to {} have been undone\n'.format(self.current))
                 self.console.insert(tk.END, '\nA RESTART IS REQUIRED FOR CHANGES TO TAKE EFFECT!\n', 'white')
-            elif halshow:
-                self.console.insert(tk.END, '\nHalshow changes were removed\n')
             else:
-                self.console.insert(tk.END, '\nThere were no changes in {} to revert\n'.format(self.current))
+                self.console.insert(tk.END, '\nThere were no configuration changes in {} to revert\n'.format(self.current))
+            if halshow:
+                self.console.insert(tk.END, '\nHalshow changes were removed\n')
             self.console.see(tk.END)
+            if mesa:
+                self.verifyThread(self.oldMesaFirmware)
         except Exception as e:
             self.console.insert(tk.END, '\nThe following system error has occured:\n\n{}'.format(e), 'red')
             self.console.see(tk.END)
+            return
 
     # Show the user the latest version number
     def getVersion(self, event=None):
@@ -692,29 +700,35 @@ class PathPirate:
         self.b3['state'] = 'normal'
         self.b4['state'] = 'normal'
 
+    # Starts the firmware verification process on its own thread, otherwise it halts updates to the textbox
     def verifyThread(self, firmwareFile):
-        self.console.insert(tk.END, '\nVerifying Mesa firmware...\n', 'cyan')
+        self.console.insert(tk.END, '\nVerifying Mesa firmware...PLEASE WAIT\n', 'cyan')
         self.console.see(tk.END)
         t1 = threading.Thread(target=self.verifyFirmware, args=(firmwareFile,))
         t1.start()
 
+    # Starts the firmware flash process on its own thread, otherwise it halts updates to the textbox
     def flashThread(self, firmwareFile):
-        self.console.insert(tk.END, '\nFlashing Mesa firmware...\n', 'cyan')
+        self.console.insert(tk.END, '\nFlashing Mesa firmware...PLEASE WAIT\n', 'cyan')
         self.console.see(tk.END)
         t2 = threading.Thread(target=self.flashFirmware, args=(firmwareFile,))
         t2.start()
 
+    # Verify the firmware matches what is flashed to the card
     def verifyFirmware(self, firmwareFile):
         try:
+            # check to see if mesaflash is installed
+            test = check_output([self.mesaFlash], stderr=STDOUT)
+            # verify firmware
             verify = ['sudo', self.mesaFlash, '--device', '5i25', '--verify', firmwareFile]
             output = Popen(verify)
             result = output.wait()
             if result == 0:
-                self.console.insert(tk.END, 'Firmware matches, no flash required\n', 'cyan')
+                self.console.insert(tk.END, 'Firmware matches, no flash required\n', 'orange')
                 self.console.see(tk.END)
                 return
             else:
-                self.console.insert(tk.END, 'Firmware differs, flash required\n', 'cyan')
+                self.console.insert(tk.END, 'Firmware flash required!\n', 'yellow')
                 self.console.see(tk.END)
         except Exception as e:
             self.console.insert(tk.END, '\nFIRMWARE VERIFICATION WAS UNSUCCESSFUL\n', 'red')
@@ -723,12 +737,13 @@ class PathPirate:
             return
         self.flashThread(firmwareFile)
 
+    # Flash the firmware to the card
     def flashFirmware(self, firmwareFile):
         try:
             flash = ['sudo', self.mesaFlash, '--device', '5i25', '--write', firmwareFile]
             output = Popen(flash)
             reply = output.wait()
-            self.console.insert(tk.END, 'Firmware flash successful!\n\n', 'cyan')
+            self.console.insert(tk.END, 'Firmware flash successful!\n\n', 'green')
             self.console.insert(tk.END, '\nA RESTART IS REQUIRED FOR CHANGES TO TAKE EFFECT!\n', 'white')
             self.console.see(tk.END)
         except Exception as e:
@@ -736,9 +751,10 @@ class PathPirate:
             self.console.insert(tk.END, '\nThe following error occured while flashing the firmware:\n\n{}'.format(e), 'red')
             self.console.see(tk.END)
 
+    # Exits PathPirate and checks if the user would like to reboot automatically
     def exitPathPirate(self, event=None):
         if self.restartRequired:
-            restart = tkMessageBox.askquestion('REBOOT REQUIRED', 'Would you like to reboot now?', icon='question')
+            restart = tkMessageBox.askquestion('REBOOT REQUIRED', 'Would you like to reboot now?\n\nDISREGARD THE PATHPILOT POWER CYCLE SCREEN\n\nCOMPUTER WILL RESTART AUTOMATICALLY', icon='question')
             if restart == 'yes':
                 os.system('sudo reboot')
             else:
