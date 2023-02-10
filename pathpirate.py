@@ -29,13 +29,12 @@ else:
     import tkFileDialog
     import tkSimpleDialog
     import tkMessageBox
-from subprocess import Popen, PIPE, check_output, STDOUT
+from subprocess import Popen, check_output, STDOUT
 from shutil import copy
 import socket
 import os
 import json
 import difflib
-import time
 import threading
 
 
@@ -53,7 +52,7 @@ class PathPirate:
         yCoord = int((screenHeight/2) - (winHeight/2))
         self.main.geometry('{}x{}+{}+{}'.format(winWidth, winHeight, xCoord, yCoord))
         self.main.attributes('-zoomed', True)
-        # self.main.attributes('-topmost',True)
+        # self.main.attributes('-topmost',True) This doesnt work to keep this window on top of PathPilot
         self.main.protocol('WM_DELETE_WINDOW', self.exitPathPirate)
 
         # add frames to window
@@ -65,7 +64,7 @@ class PathPirate:
         self.consoleFrame.pack(anchor=tk.NW, fill=tk.BOTH, expand=True)
 
         # set up buttons
-        self.b0 = tk.Button(self.buttonFrame, text='PREVIOUS\nVERSION', command=self.openFile, height=2, padx=5)
+        self.b0 = tk.Button(self.buttonFrame, text='GET DIRECTORY\nTO COMPARE', command=self.getDirectory, height=2, padx=5)
         self.b0.pack(side=tk.LEFT, fill=tk.X, expand=True)
         self.b0['state'] = 'disabled'
         self.b1 = tk.Button(self.buttonFrame, text='COMPARE\nINI', command=lambda:self.compare('INI'), height=2, padx=5)
@@ -94,7 +93,7 @@ class PathPirate:
         self.machineInfo.pack(fill=tk.BOTH, expand=True)
         self.currentVersionInfo = tk.Text(self.versionFrame, padx=5, height=1, bg='black', fg='yellow', highlightthickness=0, bd=0)
         self.currentVersionInfo.pack(fill=tk.BOTH, expand=True)
-        self.previousVersionInfo = tk.Text(self.versionFrame, padx=5, height=1, bg='black', fg='yellow', highlightthickness=0, bd=0)
+        self.previousVersionInfo = tk.Text(self.versionFrame, padx=5, height=1, bg='black', fg='orange', highlightthickness=0, bd=0)
         self.previousVersionInfo.pack(fill=tk.BOTH, expand=True)
         self.console = tk.Text(self.consoleFrame, padx=5, bg='black', fg='orange', highlightthickness=0)
         self.console.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
@@ -104,20 +103,23 @@ class PathPirate:
         self.console.tag_configure('red', foreground='red')
         self.console.tag_configure('cyan', foreground='cyan')
         self.console.tag_configure('white', foreground='white')
+        self.console.tag_configure('pink', foreground='pink')
         self.previousVersionInfo.tag_configure('cyan', foreground='cyan')
+        self.previousVersionInfo.tag_configure('red', foreground='red')
+        self.machineInfo.tag_configure('red', foreground='red')
 
-        # add scroll bar to console
+        # add scroll bar to console text box
         self.scrollBar = tk.Scrollbar(self.consoleFrame, command=self.console.yview, width=15)
         self.scrollBar.pack(side=tk.LEFT, fill=tk.Y)
         self.console['yscrollcommand']=self.scrollBar.set
 
-        # prevent typing in text boxes
+        # prevent typing in all text boxes
         self.machineInfo.bind('<Key>', lambda e: 'break')
         self.currentVersionInfo.bind('<Key>', lambda e: 'break')
         self.previousVersionInfo.bind('<Key>', lambda e: 'break')
         self.console.bind('<Key>', lambda e: 'break')
 
-        # prevent mouse wheel scrolling
+        # prevent mouse wheel scrolling in Info text boxes (linux separates scroll up and scroll down)
         self.machineInfo.bind('<Button-4>', lambda e: 'break')
         self.machineInfo.bind('<Button-5>', lambda e: 'break')
         self.currentVersionInfo.bind('<Button-4>', lambda e: 'break')
@@ -153,14 +155,14 @@ class PathPirate:
         self.scriptFile = os.path.join(self.tmc, 'bin/halshow')
         self.currentIni = os.path.join(self.tmc, 'configs/tormach_mill/tormach_mill_base.ini')
         self.currentHal = os.path.join(self.tmc, 'configs/tormach_mill/tormach_mill_mesa.hal')
-        self.mesaPath = os.path.join(self.tmc, 'mesa')
-        self.mesaFlash = os.path.join(self.tmc, 'bin/mesaflash')
-        self.newMesaFirmware = os.path.join(self.mesaPath, '5i25_t2_7i85s_dpll.bit')
-        self.oldMesaFirmware = os.path.join(self.mesaPath, 'tormach_mill3.bit')
-        self.uiCommon = os.path.join(self.tmc, 'python/ui_common.py')
         self.hal1 = os.path.join(self.tmc, 'configs/common/operator_console_controls_3axis.hal')
         self.hal2 = os.path.join(self.tmc, 'configs/common/operator_console_controls_4axis.hal')
+        self.uiCommon = os.path.join(self.tmc, 'python/ui_common.py')
         self.velPath = os.path.join(self.tmc, 'python/images/MAXVEL_100.jpg')
+        self.mesaFlash = os.path.join(self.tmc, 'bin/mesaflash')
+        self.mesaPath = os.path.join(self.tmc, 'mesa')
+        self.newMesaFirmware = os.path.join(self.mesaPath, '5i25_t2_7i85s_dpll.bit')
+        self.oldMesaFirmware = os.path.join(self.mesaPath, 'tormach_mill3.bit')
 
         # set restart flag false
         self.restartRequired = False
@@ -171,7 +173,7 @@ class PathPirate:
         # call the main window loop
         self.main.mainloop()
 
-    # Allows a user to right click to copy paste in the console text box
+    # Allows a user to right click to cut or copy in the console text box
     def rightClick(self, event=None):
         menu = tk.Menu(self.main, tearoff=0)
         menu.add_command(label='Cut', command=lambda: self.console.event_generate('<<Cut>>'))
@@ -179,26 +181,28 @@ class PathPirate:
         menu.tk_popup(event.x_root, event.y_root)
 
     # Shows the directory chooser for picking previous and current directories
-    def openFile(self, event=None):
+    def getDirectory(self, event=None):
         self.b1['state'] = 'disabled'
         self.b2['state'] = 'disabled'
         self.old = tkFileDialog.askdirectory(
                 initialdir=self.home,
                 mustexist=True,
-                title='Select PREVIOUS Version Folder (v2.X.X)')
+                title='Select Directory of Version to Compare (v2.X.X)')
         if not self.old:
             self.previousVersionInfo.delete(1.0, tk.END)
-            self.previousVersionInfo.insert(tk.END, 'PREVIOUS directory selection is required')
+            self.previousVersionInfo.insert(tk.END, 'Directory selection is required', 'red')
             return
         test = self.old.split('/')
         if not 'v2' in test[len(test)-1]:
             self.previousVersionInfo.delete(1.0, tk.END)
-            self.previousVersionInfo.insert(tk.END, 'Incorrect directory choice. Base directory must be chosen (v2.X.X)')
+            self.previousVersionInfo.insert(tk.END, 'Incorrect directory choice. Base directory must be chosen (v2.X.X)', 'red')
             return
-        for self.previous in test:
-            if 'v2' in self.previous:
+        for self.previousVer in test:
+            if 'v2' in self.previousVer:
                 self.previousVersionInfo.delete(1.0, tk.END)
-                self.previousVersionInfo.insert(tk.END, 'Previous Version of PathPilot is: {}'.format(self.previous))
+                self.previousVersionInfo.insert(tk.END, '{} will be compared against {}'.format(self.currentVer, self.previousVer))
+            if self.previousVer == self.currentVer:
+                self.previousVersionInfo.insert(tk.END, '; backup files will be used if present')
         self.b1['state'] = 'normal'
         self.b2['state'] = 'normal'
 
@@ -206,7 +210,7 @@ class PathPirate:
     def compare(self, extension, event=None):
         oldMod = False
         missing = False
-        self.console.insert(tk.END, '\n------------------\nCOMPARING {} FILE\n------------------\n'.format(extension.upper()))
+        self.console.insert(tk.END, '\n------------------\nCOMPARING {} FILE\n------------------\n'.format(extension.upper()), 'yellow')
         if extension == 'HAL':
             newFile = self.currentHal
             if os.path.exists(os.path.join(self.old, 'configs/tormach_mill/tormach_mill_mesa.hal.bak')):
@@ -222,63 +226,64 @@ class PathPirate:
             else:
                 oldFile = os.path.join(self.old, 'configs/tormach_mill/tormach_mill_base.ini')
         if oldMod:
-            self.console.insert(tk.END, 'PREVIOUS ({}) - MODIFIED {} FILE DETECTED\n'.format(self.previous, extension))
+            self.console.insert(tk.END, 'PREVIOUS ({}) - MODIFIED {} FILE DETECTED\n'.format(self.previousVer, extension))
             self.console.insert(tk.END, 'Using backup {} file to compare against current version\n\n'.format(extension))
             self.console.see(tk.END)
         for file in [oldFile, newFile]:
             if not os.path.exists(file):
-                self.console.insert(tk.END, 'The following required file is missing: {}\n'.format(file))
+                self.console.insert(tk.END, 'The following required file is missing: ', 'red')
+                self.console.insert(tk.END, '{}\n'.format(file), 'pink')
                 missing = True
         if missing:
             self.console.insert(tk.END, '\nAborting...\n', 'red')
             self.console.see(tk.END)
             return
-        with open(oldFile, 'r') as previous, open(newFile, 'r') as current:
-            previous = previous.read()
-            current = current.read()
-        if 'PathPirate' in current:
-            self.console.insert(tk.END, 'CURRENT ({}) - MODIFIED {} FILE DETECTED\n\n'.format(self.current, extension))
-            # self.console.insert(tk.END, 'Using compare on unmodified config files may make changes more apparent\n\n')
+        with open(oldFile, 'r') as previousFile, open(newFile, 'r') as currentFile:
+            previousFile = previousFile.read()
+            currentFile = currentFile.read()
+        if 'PathPirate' in currentFile:
+            self.console.insert(tk.END, 'CURRENT VERISON ({}) - MODIFIED {} FILE DETECTED\n\n'.format(self.currentVer, extension))
             self.console.see(tk.END)
-        if previous == current:
+        if previousFile == currentFile:
             self.console.insert(tk.END, 'No changes present (the files are the same)\n')
             self.console.see(tk.END)
             return
         self.console.insert(tk.END, 'The following changes exist between {} files:\n'.format(extension))
-        previous = previous.strip().splitlines()
-        current = current.strip().splitlines()
+        previousFile = previousFile.strip().splitlines()
+        currentFile = currentFile.strip().splitlines()
         # credit for help on this: https://stackoverflow.com/a/19128062
-        for line in difflib.unified_diff(previous, current, lineterm='', n=0):
+        for line in difflib.unified_diff(previousFile, currentFile, lineterm='', n=0):
             if line.startswith('---') or line.startswith('+++'):
                 continue
             elif line.startswith('@@'):
                 self.console.insert(tk.END, '\n')
             else:
                 if '+' in line:
-                    self.console.insert(tk.END, '{}: {}\n'.format(self.current, line[1:]), 'green')
+                    self.console.insert(tk.END, '{}: {}\n'.format(self.currentVer, line[1:]), 'green')
                 elif '-' in line:
-                    self.console.insert(tk.END, '{}: {}\n'.format(self.previous, line[1:]), 'red')
+                    self.console.insert(tk.END, '{}: {}\n'.format(self.previousVer, line[1:]), 'red')
         self.console.see(tk.END)
 
     # Adds halshow back to PathPilot so it can be called with 'ADMIN HALSHOW' via MDI
     def addHalshow(self, event=None):
         internet = self.internetStatus()
-        self.console.insert(tk.END, '\n--------------\nADDING HALSHOW\n--------------\n')
+        self.console.insert(tk.END, '\n--------------\nADDING HALSHOW\n--------------\n', 'yellow')
         # check if ~/tmc/tcl/bin exists (it shouldn't) and if it doesnt, create it
         if not os.path.lexists(self.sourcePath):
             os.mkdir(self.sourcePath)
         # attempt to grab latest halshow.tcl and cbutton.tcl from the linuxCNC master repository
         if internet:
-            self.console.insert(tk.END, 'Internet connection found - Attempting to pull latest files from LinuxCNC master repository\n')
-            self.console.insert(tk.END, '(Previous versions will be overwritten)\n\n')
+            self.console.insert(tk.END, 'Internet connection found\n')
+            self.console.insert(tk.END, 'Attempting to download latest files from LinuxCNC master github repository\n')
+            self.console.insert(tk.END, '(Any previous versions will be automatically overwritten without warning)\n')
             try:
                 # check for wget
                 test = check_output(['wget', '--version'], stderr=STDOUT)
-                # attempt to pull files from github
+                # attempt to download files from github
                 output = check_output('wget --quiet -O {}/halshow.tcl https://raw.github.com/LinuxCNC/linuxcnc/master/tcl/bin/halshow.tcl'.format(self.sourcePath), shell=True, stderr=STDOUT)
                 output1 = check_output('wget --quiet -O {}/cbutton.tcl https://raw.github.com/LinuxCNC/linuxcnc/master/tcl/bin/cbutton.tcl'.format(self.sourcePath), shell=True, stderr=STDOUT)
             except Exception as e:
-                self.console.insert(tk.END, 'The following error occurred while attempting to pull Halshow files from github repository:\n\n{}\n\n'.format(e), 'red')
+                self.console.insert(tk.END, 'The following error occurred while attempting to download Halshow files from LinuxCN master github repository:\n\n{}\n\n'.format(e), 'red')
                 self.console.insert(tk.END, 'There may be an internet issue, or wget may not be installed\n\n', 'red')
                 self.console.insert(tk.END, 'wget can be installed by entering "sudo apt-get install wget" in a terminal window\n\n', 'cyan')
                 self.console.insert(tk.END, 'Attempting to copy local files instead...\n\n')
@@ -300,21 +305,26 @@ class PathPirate:
                 script.write('#!/usr/bin/tclsh8.6\n')
                 script.write('source ~/tmc/tcl/bin/halshow.tcl')
         else:
-            self.console.insert(tk.END, 'The following required file is missing: {}\n'.format(self.scriptFile))
+            self.console.insert(tk.END, 'The following required file is missing: ', 'red')
+            self.console.insert(tk.END, '{}\n'.format(self.scriptFile), 'pink')
             self.console.see(tk.END)
             return
-        self.console.insert(tk.END, '\nhalshow.tcl and cbutton.tcl were successfully placed in: {}\n'.format(self.sourcePath))
-        self.console.insert(tk.END, '{} script was successfuly updated\n\n'.format(self.scriptFile))
-        self.console.insert(tk.END, 'HALSHOW can be launched via the following MDI command:\nADMIN HALSHOW\n')
+        self.console.insert(tk.END, '\nhalshow.tcl and cbutton.tcl were successfully placed in: ')
+        self.console.insert(tk.END, '{}\n'.format(self.sourcePath), 'pink')
+        self.console.insert(tk.END, 'The following script was successfully updated: ')
+        self.console.insert(tk.END, '{}\n\n'.format(self.scriptFile), 'pink')
+        self.console.insert(tk.END, 'HALSHOW can be launched via the following MDI command: ')
+        self.console.insert(tk.END, 'ADMIN HALSHOW\n', 'cyan')
         self.console.see(tk.END)
 
-    # Helper function to copy local files if no internet, or internet pull fails
+    # Copy local hlashow files if no internet, or download from internet fails
     def addHalshowCopy(self):
             self.console.insert(tk.END, 'Copying local files\n')
             missing = False
             for file in [self.halshowPath, self.cbuttonPath]:
                 if not os.path.exists(file):
-                    self.console.insert(tk.END, 'The following required file is missing: {}\n'.format(file), 'red')
+                    self.console.insert(tk.END, 'The following required file is missing: ', 'red')
+                    self.console.insert(tk.END, '{}\n'.format(file), 'pink')
                     missing = True
             if missing:
                 self.console.insert(tk.END, '\nAborting...\n', 'red')
@@ -337,12 +347,13 @@ class PathPirate:
 
     # Converts the MAX VEL slider to RAPID since having a MAX VEL slider makes no sense
     def convertSlider(self, event=None):
-        self.console.insert(tk.END, '\n---------------------------------------\nCONVERTING SLIDER FROM MAX VEL TO RAPID\n---------------------------------------\n')
+        self.console.insert(tk.END, '\n---------------------------------------\nCONVERTING SLIDER FROM MAX VEL TO RAPID\n---------------------------------------\n', 'yellow')
         missing = False
         change = False
         for file in [self.uiCommon, self.hal1, self.hal2, self.velPath, self.rapidPath]:
             if not os.path.exists(file):
-                self.console.insert(tk.END, 'The following required file is missing: {}\n'.format(file), 'red')
+                self.console.insert(tk.END, 'The following required file is missing: ', 'red')
+                self.console.insert(tk.END, '{}\n'.format(file), 'pink')
                 missing = True
         if missing:
             self.console.insert(tk.END, '\nAborting...\n', 'red')
@@ -355,7 +366,8 @@ class PathPirate:
             with open(modFile, 'r+') as file:
                 text = file.read()
                 if 'PathPirate' in text:
-                    self.console.insert(tk.END, 'Modifications to {} are already present\n'.format(modFile))
+                    self.console.insert(tk.END, 'The necessary modifications are already present in the following file: ')
+                    self.console.insert(tk.END, '{}\n'.format(modFile), 'pink')
                     continue
                 if modFile == self.uiCommon:
                     text = text.replace('lcnc_apply_function=lambda value: self.command.maxvel(value * self.maxvel_lin / 100, value * self.maxvel_ang / 100)),', \
@@ -366,7 +378,8 @@ class PathPirate:
                 file.seek(0)
                 file.truncate()
                 file.write(text)
-                self.console.insert(tk.END, '{} has been modified\n'.format(modFile))
+                self.console.insert(tk.END, 'The following file has been successfully modified: ')
+                self.console.insert(tk.END, '{}\n'.format(modFile), 'pink')
                 change = True
         with open (self.velPath, 'rb') as originalImage:
             original = originalImage.read()
@@ -379,7 +392,8 @@ class PathPirate:
             if not os.path.exists(tempFile):
                 copy(self.velPath, tempFile)
             copy(self.rapidPath, self.velPath)
-            self.console.insert(tk.END, 'Image file copied to: {}\n'.format(self.velPath))
+            self.console.insert(tk.END, 'Image file copied to: ')
+            self.console.insert(tk.END, '{}\n'.format(self.velPath), 'pink')
             change = True
         if change:
             self.restartRequired = True
@@ -416,15 +430,17 @@ class PathPirate:
         change = False
         missing = False
         mesa = False
-        self.console.insert(tk.END, '\n---------------\nADDING ENCODER\n---------------\n')
+        self.console.insert(tk.END, '\n---------------\nADDING ENCODER\n---------------\n', 'yellow')
+        # initialvalue is set to -1440 as a perk of being the author :)
         scale = self.askinteger(title='ENCODER SCALE', prompt='Enter the encoder scale:', initialvalue='-1440', parent=self.main)
         if scale is None:
-            self.console.insert(tk.END, 'Encoder scale is required\n')
+            self.console.insert(tk.END, 'Encoder scale is required\n', 'red')
             self.console.see(tk.END)
             return
         for file in [self.currentHal, self.currentIni, self.newBin]:
             if not os.path.exists(file):
-                self.console.insert(tk.END, 'The following required file is missing: {}\n'.format(file), 'red')
+                self.console.insert(tk.END, 'The following required file is missing: ', 'red')
+                self.console.insert(tk.END, '{}\n'.format(file), 'pink')
                 missing = True
         if missing:
             self.console.insert(tk.END, '\nAborting...\n', 'red')
@@ -434,7 +450,8 @@ class PathPirate:
             text = file.read()
             if '#The following encoder lines were added by PathPirate' in text:
                 if 'setp hm2_5i25.0.encoder.00.scale {}'.format(scale) in text:
-                    self.console.insert(tk.END, 'Modifications to {} are already present\n'.format(self.currentHal))
+                    self.console.insert(tk.END, 'The necessary modifications are already present in the following file: ')
+                    self.console.insert(tk.END, '{}\n'.format(self.currentHal), 'pink')
                 else:
                     for line in text.splitlines():
                         if 'setp hm2_5i25.0.encoder.00.scale' in line:
@@ -443,7 +460,8 @@ class PathPirate:
                             file.truncate()
                             file.write(text)
                             change = True
-                            self.console.insert(tk.END, '{} has been modified\n'.format(self.currentHal))
+                            self.console.insert(tk.END, 'The following file has been modified to change the encoder scale: '.format(self.currentHal))
+                            self.console.insert(tk.END, '{}\n'.format(self.currentHal), 'pink')
             else:
                 tempFile = '{}.bak'.format(self.currentHal)
                 if not os.path.exists(tempFile):
@@ -459,7 +477,8 @@ class PathPirate:
                 file.truncate()
                 file.write(text)
                 change = True
-                self.console.insert(tk.END, '{} has been modified\n'.format(self.currentHal))
+                self.console.insert(tk.END, 'The following file has been successfully modified: ')
+                self.console.insert(tk.END, '{}\n'.format(self.currentHal), 'pink')
         tempFile = '{}.bak'.format(self.currentIni)
         if not os.path.exists(tempFile):
             copy(self.currentIni, tempFile)
@@ -475,16 +494,20 @@ class PathPirate:
                 file.truncate()
                 file.write(text)
                 change = True
-                self.console.insert(tk.END, '{} has been modified\n'.format(self.currentIni))
+                self.console.insert(tk.END, 'The following file has been successfully modified: ')
+                self.console.insert(tk.END, '{}\n'.format(self.currentIni), 'pink')
             else:
-                self.console.insert(tk.END, 'Necessary modifications to {} are already present\n'.format(self.currentIni))
+                self.console.insert(tk.END, 'The necessary modifications are already present in the following file: ')
+                self.console.insert(tk.END, '{}\n'.format(self.currentIni), 'pink')
         if not os.path.exists(os.path.join(self.mesaPath, '5i25_t2_7i85s_dpll.bit')):
             copy(self.newBin, self.mesaPath)
             change = True
             mesa = True
-            self.console.insert(tk.END, '{} has been copied to {}\n'.format(self.newBin, self.mesaPath))
+            self.console.insert(tk.END, '5i25_t2_7i85s_dpll.bit has been copied to: ')
+            self.console.insert(tk.END, '{}\n'.format(self.mesaPath), 'pink')
         else:
-            self.console.insert(tk.END, '5i25_t2_7i85s_dpll.bit already exists in {}\n'.format(self.mesaPath))
+            self.console.insert(tk.END, '5i25_t2_7i85s_dpll.bit already exists in :')
+            self.console.insert(tk.END, '{}\n'.format(self.mesaPath), 'pink')
         if change:
             self.restartRequired = True
             self.console.insert(tk.END, '\nA RESTART IS REQUIRED FOR CHANGES TO TAKE EFFECT!\n', 'white')
@@ -494,7 +517,7 @@ class PathPirate:
 
     # Adds ClearPath Servos to an 1100-3 machine (that is using a Mesa 7i85s card)
     def addServos(self, event=None):
-        self.console.insert(tk.END, '\n-----------------------\nADDING CLEARPATH SERVOS\n-----------------------\n')
+        self.console.insert(tk.END, '\n-----------------------\nADDING CLEARPATH SERVOS\n-----------------------\n', 'yellow')
         hostmotSection = False
         trajSection = False
         xySection = False
@@ -503,9 +526,11 @@ class PathPirate:
         missing = False
         change = False
         mesa = False
+        encoder = True
         for file in [self.currentHal, self.currentIni, self.newBin, self.mesaPath]:
             if not os.path.exists(file):
-                self.console.insert(tk.END, 'The following required file is missing: {}\n'.format(file), 'red')
+                self.console.insert(tk.END, 'The following required file is missing: ', 'red')
+                self.console.insert(tk.END, '{}\n'.format(file), 'pink')
                 missing = True
         if missing:
             self.console.insert(tk.END, '\nAborting...\n', 'red')
@@ -516,6 +541,8 @@ class PathPirate:
             copy(self.currentIni, tempFile)
         with open(self.currentIni, 'r') as file:
             text=file.read()
+        if '#Encoder added by PathPirate' in text:
+            encoder = True
         if not '#Servos added by PathPirate' in text:
             with open(tempFile, 'r') as inFile:
                 with open (self.currentIni, 'w') as outFile:
@@ -578,11 +605,15 @@ class PathPirate:
                                 if line.startswith('['):
                                     zSection = False
                         outFile.write(line)
+                    if encoder:
+                        outFile.write('#Encoder added by PathPirate\n')
                     outFile.write('#Servos added by PathPirate\n')
                 change = True
-                self.console.insert(tk.END, '{} has been modified\n'.format(self.currentIni))
+                self.console.insert(tk.END, 'The following file has been successfully modified: ')
+                self.console.insert(tk.END, '{}\n'.format(self.currentIni), 'pink')
         else:
-            self.console.insert(tk.END, 'Modifications to {} are already present\n'.format(self.currentIni))
+            self.console.insert(tk.END, 'The necessary modifications are already present in the following file: ')
+            self.console.insert(tk.END, '{}\n'.format(self.currentIni), 'pink')
         tempFile = '{}.bak'.format(self.currentHal)
         if not os.path.exists(tempFile):
             copy(self.currentHal, tempFile)
@@ -604,16 +635,20 @@ class PathPirate:
                 file.truncate()
                 file.write(text)
                 change = True
-                self.console.insert(tk.END, '{} has been modified\n'.format(self.currentHal))
+                self.console.insert(tk.END, 'The following file has been successfully modified: ')
+                self.console.insert(tk.END, '{}\n'.format(self.currentHal), 'pink')
             else:
-                self.console.insert(tk.END, 'Modifications to {} are already present\n'.format(self.currentHal))
+                self.console.insert(tk.END, 'The necessary modifications are already present in the following file: ')
+                self.console.insert(tk.END, '{}\n'.format(self.currentHal), 'pink')
         if not os.path.exists(os.path.join(self.mesaPath, '5i25_t2_7i85s_dpll.bit')):
             copy(self.newBin, self.mesaPath)
             change = True
             mesa = True
-            self.console.insert(tk.END, '{} has been copied to {}\n'.format(self.newBin, self.mesaPath))
+            self.console.insert(tk.END, '5i25_t2_7i85s_dpll.bit has been copied to: ')
+            self.console.insert(tk.END, '{}\n'.format(self.mesaPath), 'pink')
         else:
-            self.console.insert(tk.END, '5i25_t2_7i85s_dpll.bit already exists in {}\n'.format(self.mesaPath))
+            self.console.insert(tk.END, '5i25_t2_7i85s_dpll.bit already exists in :')
+            self.console.insert(tk.END, '{}\n'.format(self.mesaPath), 'pink')
         if change:
             self.restartRequired = True
             self.console.insert(tk.END, '\nA RESTART IS REQUIRED FOR CHANGES TO TAKE EFFECT!\n', 'white')
@@ -621,8 +656,9 @@ class PathPirate:
         if mesa:
             self.verifyThread(self.newMesaFirmware)
 
-    # Revert any changes that have occurred by restoring backup files/deleting new files
+    # Revert any changes PathPirate may have made by restoring backup files/deleting new files
     def revertAll(self, event=None):
+        self.console.insert(tk.END, '\n-----------------------\nREVERTING ALL CHANGES\n-----------------------\n', 'yellow')
         change = False
         halshow = False
         mesa = False
@@ -651,23 +687,23 @@ class PathPirate:
             if os.path.exists(self.sourcePath):
                 halshow = True
                 os.rmdir(self.sourcePath)
-            if change:
+            if halshow and not change:
+                self.console.insert(tk.END, 'Halshow changes have been removed\n')
+            elif change:
                 self.restartRequired = True
-                self.console.insert(tk.END, '\nAll changes to {} have been undone\n'.format(self.current))
-                self.console.insert(tk.END, '\nA RESTART IS REQUIRED FOR CHANGES TO TAKE EFFECT!\n', 'white')
+                self.console.insert(tk.END, 'All changes to {} have been undone\n\n'.format(self.currentVer))
+                self.console.insert(tk.END, 'A RESTART IS REQUIRED FOR CHANGES TO TAKE EFFECT!\n', 'white')
             else:
-                self.console.insert(tk.END, '\nThere were no configuration changes in {} to revert\n'.format(self.current))
-            if halshow:
-                self.console.insert(tk.END, '\nHalshow changes were removed\n')
+                self.console.insert(tk.END, 'There were no configuration changes in {} to revert\n'.format(self.currentVer))
             self.console.see(tk.END)
             if mesa:
                 self.verifyThread(self.oldMesaFirmware)
         except Exception as e:
-            self.console.insert(tk.END, '\nThe following system error has occured:\n\n{}'.format(e), 'red')
+            self.console.insert(tk.END, 'The following system error has occured:\n\n{}\n'.format(e), 'red')
             self.console.see(tk.END)
             return
 
-    # Show the user the latest version number
+    # Get the latest version number and machine model
     def getVersion(self, event=None):
         machineFile = os.path.join(self.home, 'machine.json')
         if os.path.exists(machineFile):
@@ -681,21 +717,21 @@ class PathPirate:
             else:
                 self.machineInfo.insert(tk.END, 'Machine Model is: {}\n'.format(machine))
         else:
-            self.machineInfo.insert(tk.END, '{} is missing! Unable to proceed!\n'.format(machineFile))
+            self.machineInfo.insert(tk.END, 'ERROR: {} is missing! Unable to proceed!\n'.format(machineFile), 'red')
             return
         if not os.path.exists(self.tmc):
-            self.currentVersionInfo.insert(tk.END, '~/tmc does not exist, is PathPilot installed?\n')
+            self.currentVersionInfo.insert(tk.END, 'ERROR: ~/tmc does not exist, is PathPilot installed?\n', 'red')
             return
         versionFile = os.path.join(self.tmc, 'version.json')
         if os.path.exists(versionFile):
             with open(versionFile, 'r') as jsonFile:
                 versionData = json.load(jsonFile)
-            self.current = versionData['version']
-            self.currentVersionInfo.insert(tk.END, 'Current Version of PathPilot is: {}\n'.format(self.current))
+            self.currentVer = versionData['version']
+            self.currentVersionInfo.insert(tk.END, 'Current Version of PathPilot is: {}\n'.format(self.currentVer))
         else:
-            self.currentVersionInfo.insert(tk.END, '{} is missing! Unable to proceed!\n'.format(versionFile))
+            self.currentVersionInfo.insert(tk.END, 'ERROR: {} is missing! Unable to proceed!\n'.format(versionFile), 'red')
             return
-        self.previousVersionInfo.insert(tk.END, 'To use the COMPARE feature, click PREVIOUS VERSION to select the previous version directory', 'cyan')
+        self.previousVersionInfo.insert(tk.END, 'To use the COMPARE feature, click GET DIRECTORY TO COMPARE to select the directory of the version to compare the current version against', 'cyan')
         self.b0['state'] = 'normal'
         self.b3['state'] = 'normal'
         self.b4['state'] = 'normal'
@@ -732,7 +768,7 @@ class PathPirate:
                 self.console.see(tk.END)
         except Exception as e:
             self.console.insert(tk.END, '\nFIRMWARE VERIFICATION WAS UNSUCCESSFUL\n', 'red')
-            self.console.insert(tk.END, '\nThe following error occured while verifying the firmware:\n\n{}'.format(e), 'red')
+            self.console.insert(tk.END, '\nThe following error occured while verifying the firmware:\n\n{}\n'.format(e), 'red')
             self.console.see(tk.END)
             return
         self.flashThread(firmwareFile)
@@ -748,7 +784,7 @@ class PathPirate:
             self.console.see(tk.END)
         except Exception as e:
             self.console.insert(tk.END, '\nFIRMWARE FLASH WAS UNSUCCESSFUL\n', 'red')
-            self.console.insert(tk.END, '\nThe following error occured while flashing the firmware:\n\n{}'.format(e), 'red')
+            self.console.insert(tk.END, '\nThe following error occured while flashing the firmware:\n\n{}\n'.format(e), 'red')
             self.console.see(tk.END)
 
     # Exits PathPirate and checks if the user would like to reboot automatically
