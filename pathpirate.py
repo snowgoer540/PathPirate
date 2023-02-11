@@ -41,9 +41,9 @@ import threading
 class PathPirate:
 
     def __init__(self):
-        # set up window
+        # set up the main window
         self.main = tk.Tk()
-        self.main.title('PathPirate Configurator v1.0 for Tormach Milling Machines')
+        self.main.title("PathPirate Configurator v1.0 for Tormach's PathPilot")
         winWidth = 1000
         winHeight = 700
         screenWidth = self.main.winfo_screenwidth()
@@ -52,7 +52,7 @@ class PathPirate:
         yCoord = int((screenHeight/2) - (winHeight/2))
         self.main.geometry('{}x{}+{}+{}'.format(winWidth, winHeight, xCoord, yCoord))
         self.main.attributes('-zoomed', True)
-        # self.main.attributes('-topmost',True) This doesnt work to keep this window on top of PathPilot
+        # self.main.attributes('-topmost',True) This doesnt work to keep this window on top of PathPilot. This is just here to remind me of that.
         self.main.protocol('WM_DELETE_WINDOW', self.exitPathPirate)
 
         # add frames to window
@@ -144,11 +144,11 @@ class PathPirate:
             pass
 
         # set up necessary paths
-        self.currentDir = os.path.realpath(os.path.dirname(__file__))
-        self.newBin = os.path.join(self.currentDir, 'files/5i25_t2_7i85s_dpll.bit')
-        self.rapidPath = os.path.join(self.currentDir, 'files/MAXVEL_100.jpg')
-        self.halshowPath = os.path.join(self.currentDir, 'files/halshow.tcl')
-        self.cbuttonPath = os.path.join(self.currentDir, 'files/cbutton.tcl')
+        self.pathPirateDir = os.path.realpath(os.path.dirname(__file__))
+        self.newBin = os.path.join(self.pathPirateDir, 'files/5i25_t2_7i85s_dpll.bit')
+        self.rapidPath = os.path.join(self.pathPirateDir, 'files/MAXVEL_100.jpg')
+        self.halshowPath = os.path.join(self.pathPirateDir, 'files/halshow.tcl')
+        self.cbuttonPath = os.path.join(self.pathPirateDir, 'files/cbutton.tcl')
         self.home = os.getenv('HOME')
         self.tmc = os.path.join(self.home, 'tmc')
         self.sourcePath = os.path.join(self.tmc, 'tcl/bin')
@@ -430,7 +430,7 @@ class PathPirate:
         change = False
         missing = False
         mesa = False
-        self.console.insert(tk.END, '\n---------------\nADDING ENCODER\n---------------\n', 'yellow')
+        self.console.insert(tk.END, '\n--------------\nADDING ENCODER\n--------------\n', 'yellow')
         # initialvalue is set to -1440 as a perk of being the author :)
         scale = self.askinteger(title='ENCODER SCALE', prompt='Enter the encoder scale:', initialvalue='-1440', parent=self.main)
         if scale is None:
@@ -658,7 +658,7 @@ class PathPirate:
 
     # Revert any changes PathPirate may have made by restoring backup files/deleting new files
     def revertAll(self, event=None):
-        self.console.insert(tk.END, '\n-----------------------\nREVERTING ALL CHANGES\n-----------------------\n', 'yellow')
+        self.console.insert(tk.END, '\n---------------------\nREVERTING ALL CHANGES\n---------------------\n', 'yellow')
         change = False
         halshow = False
         mesa = False
@@ -790,13 +790,19 @@ class PathPirate:
     # Exits PathPirate and checks if the user would like to reboot automatically
     def exitPathPirate(self, event=None):
         if self.restartRequired:
-            restart = tkMessageBox.askquestion('REBOOT REQUIRED', 'Would you like to reboot now?\n\nDISREGARD THE PATHPILOT POWER CYCLE SCREEN\n\nCOMPUTER WILL RESTART AUTOMATICALLY', icon='question')
+            restart = tkMessageBox.askquestion('RESTART REQUIRED', 'Would you like to restart the PC now?\n\nDISREGARD THE PATHPILOT POWER CYCLE SCREEN\n\nCOMPUTER WILL RESTART AUTOMATICALLY', icon='question', type='yesnocancel')
             if restart == 'yes':
                 os.system('sudo reboot')
-            else:
+            elif restart == 'no':
                 self.main.destroy()
+            else:
+                pass
         else:
-            self.main.destroy()
+            exit = tkMessageBox.askokcancel('EXIT PATHPIRATE', 'No restart is required\n\nWould you like to exit?')
+            if exit == True:
+                self.main.destroy()
+            else:
+                pass
 
 if __name__ == '__main__':
     app = PathPirate()
