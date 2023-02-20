@@ -166,6 +166,7 @@ class PathPirate:
 
         # set restart flag false
         self.restartRequired = False
+        self.powerCycleRequired = False
 
         # get current version and machine info
         self.getVersion()
@@ -780,7 +781,8 @@ class PathPirate:
             output = Popen(flash)
             reply = output.wait()
             self.console.insert(tk.END, 'Firmware flash successful!\n\n', 'green')
-            self.console.insert(tk.END, '\nA RESTART IS REQUIRED FOR CHANGES TO TAKE EFFECT!\n', 'white')
+            self.console.insert(tk.END, '\nA POWER CYCLE IS REQUIRED FOR CHANGES TO TAKE EFFECT!\n', 'white')
+            self.powerCycleRequired = True
             self.console.see(tk.END)
         except Exception as e:
             self.console.insert(tk.END, '\nFIRMWARE FLASH WAS UNSUCCESSFUL\n', 'red')
@@ -789,7 +791,15 @@ class PathPirate:
 
     # Exits PathPirate and checks if the user would like to reboot automatically
     def exitPathPirate(self, event=None):
-        if self.restartRequired:
+        if self.powerCycleRequired:
+            powerCycle = tkMessageBox.askquestion('POWER CYCLE REQUIRED', 'Would you like to power cycle the PC now?', icon='question', type='yesnocancel')
+            if powerCycle == 'yes':
+                os.system('sudo shutdown -H now')
+            elif restart == 'no':
+                self.main.destroy()
+            else:
+                pass
+        elif self.restartRequired:
             restart = tkMessageBox.askquestion('RESTART REQUIRED', 'Would you like to restart the PC now?\n\nDISREGARD THE PATHPILOT POWER CYCLE SCREEN\n\nCOMPUTER WILL RESTART AUTOMATICALLY', icon='question', type='yesnocancel')
             if restart == 'yes':
                 os.system('sudo reboot')
