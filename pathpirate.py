@@ -406,6 +406,7 @@ class PathPirate:
         if change:
             self.restartRequired = True
             self.console.insert(tk.END, '\nA RESTART IS REQUIRED FOR CHANGES TO TAKE EFFECT!\n', 'white')
+            self.console.insert(tk.END, 'You will be prompted to restart upon exiting PathPirate\n', 'white')
         self.console.see(tk.END)
 
     # Added to center the tkSimpleDialog.askinteger box. Help from: https://stackoverflow.com/a/69904742 (and the tkSimpleDialog source code)
@@ -509,7 +510,6 @@ class PathPirate:
                 self.console.insert(tk.END, '{}\n'.format(self.currentIni), 'pink')
         if not os.path.exists(os.path.join(self.mesaPath, '5i25_t2_7i85s_dpll.bit')):
             copy(self.newBin, self.mesaPath)
-            change = True
             mesa = True
             self.console.insert(tk.END, '5i25_t2_7i85s_dpll.bit has been copied to: ')
             self.console.insert(tk.END, '{}\n'.format(self.mesaPath), 'pink')
@@ -650,7 +650,6 @@ class PathPirate:
                 self.console.insert(tk.END, '{}\n'.format(self.currentHal), 'pink')
         if not os.path.exists(os.path.join(self.mesaPath, '5i25_t2_7i85s_dpll.bit')):
             copy(self.newBin, self.mesaPath)
-            change = True
             mesa = True
             self.console.insert(tk.END, '5i25_t2_7i85s_dpll.bit has been copied to: ')
             self.console.insert(tk.END, '{}\n'.format(self.mesaPath), 'pink')
@@ -660,6 +659,7 @@ class PathPirate:
         if change:
             self.restartRequired = True
             self.console.insert(tk.END, '\nA RESTART IS REQUIRED FOR CHANGES TO TAKE EFFECT!\n', 'white')
+            self.console.insert(tk.END, 'You will be prompted to restart upon exiting PathPirate\n', 'white')
         self.console.see(tk.END)
         if mesa:
             self.verifyThread(self.newMesaFirmware)
@@ -680,7 +680,6 @@ class PathPirate:
                     copy(tempFile, file)
                     os.remove(tempFile)
             if os.path.exists(self.newMesaFirmware):
-                change = True
                 mesa = True
                 os.remove(self.newMesaFirmware)
             for file in [halshowPath, cbuttonPath]:
@@ -701,6 +700,7 @@ class PathPirate:
                 self.restartRequired = True
                 self.console.insert(tk.END, 'All changes to {} have been undone\n\n'.format(self.currentVer))
                 self.console.insert(tk.END, 'A RESTART IS REQUIRED FOR CHANGES TO TAKE EFFECT!\n', 'white')
+                self.console.insert(tk.END, 'You will be prompted to restart upon exiting PathPirate\n', 'white')
             else:
                 self.console.insert(tk.END, 'There were no configuration changes in {} to revert\n'.format(self.currentVer))
             self.console.see(tk.END)
@@ -789,6 +789,7 @@ class PathPirate:
             reply = output.wait()
             self.console.insert(tk.END, 'Firmware flash successful!\n\n', 'green')
             self.console.insert(tk.END, '\nA POWER CYCLE IS REQUIRED FOR CHANGES TO TAKE EFFECT!\n', 'white')
+            self.console.insert(tk.END, 'You will be prompted to shutdown upon exiting PathPirate\n', 'white')
             self.powerCycleRequired = True
             self.console.see(tk.END)
         except Exception as e:
