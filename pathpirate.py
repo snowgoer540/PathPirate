@@ -534,7 +534,7 @@ class PathPirate:
         missing = False
         change = False
         mesa = False
-        encoder = True
+        encoder = False
         for file in [self.currentHal, self.currentIni, self.newBin, self.mesaPath]:
             if not os.path.exists(file):
                 self.console.insert(tk.END, 'The following required file is missing: ', 'red')
