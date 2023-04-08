@@ -18,6 +18,7 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 '''
+
 import sys
 if sys.version_info[0] > 2:
     import tkinter as tk
@@ -36,7 +37,6 @@ import os
 import json
 import difflib
 import threading
-
 
 class PathPirate:
 
@@ -149,6 +149,7 @@ class PathPirate:
         self.rapidPath = os.path.join(self.pathPirateDir, 'files/MAXVEL_100.jpg')
         self.halshowPath = os.path.join(self.pathPirateDir, 'files/halshow.tcl')
         self.cbuttonPath = os.path.join(self.pathPirateDir, 'files/cbutton.tcl')
+        self.newTooltips = os.path.join(self.pathPirateDir, 'files/pathpirate_tooltips.json')
         self.home = os.getenv('HOME')
         self.tmc = os.path.join(self.home, 'tmc')
         self.sourcePath = os.path.join(self.tmc, 'tcl/bin')
@@ -158,6 +159,7 @@ class PathPirate:
         self.hal1 = os.path.join(self.tmc, 'configs/common/operator_console_controls_3axis.hal')
         self.hal2 = os.path.join(self.tmc, 'configs/common/operator_console_controls_4axis.hal')
         self.uiCommon = os.path.join(self.tmc, 'python/ui_common.py')
+        self.tooltips = os.path.join(self.tmc, 'python/res/tooltips.json')
         self.velPath = os.path.join(self.tmc, 'python/images/MAXVEL_100.jpg')
         self.mesaFlash = os.path.join(self.tmc, 'bin/mesaflash')
         self.mesaPath = os.path.join(self.tmc, 'mesa')
@@ -351,7 +353,7 @@ class PathPirate:
         self.console.insert(tk.END, '\n---------------------------------------\nCONVERTING SLIDER FROM MAX VEL TO RAPID\n---------------------------------------\n', 'yellow')
         missing = False
         change = False
-        for file in [self.uiCommon, self.hal1, self.hal2, self.velPath, self.rapidPath]:
+        for file in [self.uiCommon, self.hal1, self.hal2, self.velPath, self.rapidPath, self.tooltips]:
             if not os.path.exists(file):
                 self.console.insert(tk.END, 'The following required file is missing: ', 'red')
                 self.console.insert(tk.END, '{}\n'.format(file), 'pink')
@@ -360,10 +362,15 @@ class PathPirate:
             self.console.insert(tk.END, '\nAborting...\n', 'red')
             self.console.see(tk.END)
             return
-        for modFile in [self.uiCommon, self.hal1, self.hal2]:
+        for modFile in [self.uiCommon, self.hal1, self.hal2, self.tooltips]:
             tempFile = '{}.bak'.format(modFile)
             if not os.path.exists(tempFile):
                 copy(modFile, tempFile)
+                if modFile == self.tooltips:
+                    copy(self.newTooltips, self.tooltips)
+                    self.console.insert(tk.END, 'The following file has been successfully modified: ')
+                    self.console.insert(tk.END, '{}\n'.format(modFile), 'pink')
+                    continue
             with open(modFile, 'r+') as file:
                 text = file.read()
                 if 'PathPirate' in text:
@@ -666,7 +673,7 @@ class PathPirate:
         halshowPath = os.path.join(self.sourcePath, 'halshow.tcl')
         cbuttonPath = os.path.join(self.sourcePath, 'cbutton.tcl')
         try:
-            for file in [self.uiCommon, self.hal1, self.hal2, self.velPath, self.currentHal, self.currentIni]:
+            for file in [self.uiCommon, self.hal1, self.hal2, self.velPath, self.currentHal, self.currentIni, self.tooltips]:
                 tempFile = '{}.bak'.format(file)
                 if os.path.exists(tempFile):
                     change = True
