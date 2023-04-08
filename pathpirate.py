@@ -146,7 +146,7 @@ class PathPirate:
         # set up necessary paths
         self.pathPirateDir = os.path.realpath(os.path.dirname(__file__))
         self.newBin = os.path.join(self.pathPirateDir, 'files/5i25_t2_7i85s_dpll.bit')
-        self.rapidPath = os.path.join(self.pathPirateDir, 'files/MAXVEL_100.jpg')
+        self.rapidPath = os.path.join(self.pathPirateDir, 'files/RAPID_100.jpg')
         self.halshowPath = os.path.join(self.pathPirateDir, 'files/halshow.tcl')
         self.cbuttonPath = os.path.join(self.pathPirateDir, 'files/cbutton.tcl')
         self.newTooltips = os.path.join(self.pathPirateDir, 'files/pathpirate_tooltips.json')
