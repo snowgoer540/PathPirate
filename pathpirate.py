@@ -150,6 +150,7 @@ class PathPirate:
         self.halshowPath = os.path.join(self.pathPirateDir, 'files/halshow.tcl')
         self.cbuttonPath = os.path.join(self.pathPirateDir, 'files/cbutton.tcl')
         self.newTooltips = os.path.join(self.pathPirateDir, 'files/pathpirate_tooltips.json')
+        self.clearPathHal = os.path.join(self.pathPirateDir, 'files/pathpirate_cpm_hsh.hal')
         self.home = os.getenv('HOME')
         self.tmc = os.path.join(self.home, 'tmc')
         self.sourcePath = os.path.join(self.tmc, 'tcl/bin')
@@ -457,7 +458,7 @@ class PathPirate:
             return
         with open(self.currentHal, 'r+') as file:
             text = file.read()
-            if '#The following encoder lines were added by PathPirate' in text:
+            if '# The following encoder lines were added by PathPirate' in text:
                 if 'setp hm2_5i25.0.encoder.00.scale {}'.format(scale) in text:
                     self.console.insert(tk.END, 'The necessary modifications are already present in the following file: ')
                     self.console.insert(tk.END, '{}\n'.format(self.currentHal), 'pink')
@@ -476,7 +477,7 @@ class PathPirate:
                 if not os.path.exists(tempFile):
                     copy(self.currentHal, tempFile)
                 text += ('\n#####################################################################\n')
-                text += ('#The following encoder lines were added by PathPirate\n\n')
+                text += ('# The following encoder lines were added by PathPirate\n\n')
                 text += ('unlinkp motion.spindle-speed-in\n')
                 text += ('net spindle-position hm2_5i25.0.encoder.00.position => motion.spindle-revs\n')
                 text += ('net spindle-velocity hm2_5i25.0.encoder.00.velocity => motion.spindle-speed-in\n')
@@ -493,12 +494,12 @@ class PathPirate:
             copy(self.currentIni, tempFile)
         with open(self.currentIni, 'r+') as file:
             text = file.read()
-            if not '#Encoder added by PathPirate' in text:
+            if not '# Encoder added by PathPirate' in text:
                 text = text.replace('DRIVER_PARAMS="config= num_encoders=2 num_pwmgens=1 num_3pwmgens=0 num_stepgens=5 "', \
                 'DRIVER_PARAMS="config= num_encoders=4 num_pwmgens=1 num_3pwmgens=0 num_stepgens=5 "')
                 text = text.replace('BITFILE0=mesa/tormach_mill3.bit', \
                 'BITFILE0=mesa/5i25_t2_7i85s_dpll.bit')
-                text += ('#Encoder added by PathPirate')
+                text += ('# Encoder added by PathPirate')
                 file.seek(0)
                 file.truncate()
                 file.write(text)
@@ -519,6 +520,7 @@ class PathPirate:
         if change:
             self.restartRequired = True
             self.console.insert(tk.END, '\nA RESTART IS REQUIRED FOR CHANGES TO TAKE EFFECT!\n', 'white')
+            self.console.insert(tk.END, 'You will be prompted to restart upon exiting PathPirate\n', 'white')
         self.console.see(tk.END)
         if mesa:
             self.verifyThread(self.newMesaFirmware)
@@ -530,7 +532,7 @@ class PathPirate:
         trajSection = False
         xySection = False
         zSection = False
-        putSmoothing = False
+        putServoLines = False
         missing = False
         change = False
         mesa = False
@@ -549,9 +551,9 @@ class PathPirate:
             copy(self.currentIni, tempFile)
         with open(self.currentIni, 'r') as file:
             text=file.read()
-        if '#Encoder added by PathPirate' in text:
+        if '# Encoder added by PathPirate' in text:
             encoder = True
-        if not '#Servos added by PathPirate' in text:
+        if not '# Servos added by PathPirate' in text:
             with open(tempFile, 'r') as inFile:
                 with open (self.currentIni, 'w') as outFile:
                     for line in inFile:
@@ -561,10 +563,10 @@ class PathPirate:
                             trajSection = True
                         elif line.startswith('[AXIS_0]') or line.startswith('[AXIS_1]'):
                             xySection = True
-                            putSmoothing = True
+                            putServoLines = True
                         elif line.startswith('[AXIS_2]'):
                             zSection = True
-                            putSmoothing = True
+                            putServoLines = True
                         elif hostmotSection:
                             line = line.replace('DRIVER_PARAMS="config= num_encoders=2 num_pwmgens=1 num_3pwmgens=0 num_stepgens=5 "', \
                             'DRIVER_PARAMS="config= num_encoders=4 num_pwmgens=1 num_3pwmgens=0 num_stepgens=5 "')
@@ -589,9 +591,10 @@ class PathPirate:
                             line = line.replace('STEPLEN = 8000', 'STEPLEN = 2000')
                             line = line.replace('STEPSPACE  = 5000', 'STEPSPACE  = 2000')
                             line = line.replace('SCALE = 10000.0', 'SCALE = 16000.0')
-                            if 'HOME_SEQUENCE' in line and putSmoothing:
-                                    line += '\nSMOOTHING_WINDOW = 0.0056\n'
-                                    putSmoothing = False
+                            if 'HOME_SEQUENCE' in line and putServoLines:
+                                    line += 'SMOOTHING_WINDOW = 0.0056\n'
+                                    line += 'HOME_HSTOP = YES\n'
+                                    putServoLines = False
                             if line.startswith('['):
                                 xySection = False
                             elif zSection:
@@ -607,15 +610,16 @@ class PathPirate:
                                 line = line.replace('STEPLEN = 8000', 'STEPLEN = 2000')
                                 line = line.replace('STEPSPACE  = 5000', 'STEPSPACE  = 2000')
                                 line = line.replace('SCALE = -10000.0', 'SCALE = -16000.0')
-                                if 'HOME_SEQUENCE' in line and putSmoothing:
-                                        line += '\nSMOOTHING_WINDOW = 0.0056\n'
-                                        putSmoothing = False
+                                if 'HOME_SEQUENCE' in line and putServoLines:
+                                        line += 'SMOOTHING_WINDOW = 0.0056\n'
+                                        line += 'HOME_HSTOP = YES\n'
+                                        putServoLines = False
                                 if line.startswith('['):
                                     zSection = False
                         outFile.write(line)
                     if encoder:
-                        outFile.write('#Encoder added by PathPirate\n')
-                    outFile.write('#Servos added by PathPirate\n')
+                        outFile.write('# Encoder added by PathPirate\n')
+                    outFile.write('# Servos added by PathPirate\n')
                 change = True
                 self.console.insert(tk.END, 'The following file has been successfully modified: ')
                 self.console.insert(tk.END, '{}\n'.format(self.currentIni), 'pink')
@@ -625,28 +629,29 @@ class PathPirate:
         tempFile = '{}.bak'.format(self.currentHal)
         if not os.path.exists(tempFile):
             copy(self.currentHal, tempFile)
-        with open(self.currentHal, 'r+') as file:
-            text = file.read()
-            if not '#The following ClearPath servo lines were added by PathPirate' in text:
-                text = text.replace('loadrt not names=prog-not-idle,axis3-not-homing,x-homing-not2', \
-                'loadrt not names=prog-not-idle,axis3-not-homing,x-homing-not2,x-fault-not,y-fault-not #Changed by PathPirate')
+        if encoder:
+            with open(self.currentHal, 'r') as file:
+                    for line in file:
+                        if line.startswith('setp hm2_5i25.0.encoder.00.scale'):
+                            scale = line.split()[2]
+        copy(self.clearPathHal, self.currentHal)
+        self.console.insert(tk.END, 'New HAL file copied to: ')
+        self.console.insert(tk.END, '{}\n'.format(self.currentHal), 'pink')#gdc
+        if encoder:
+            with open(self.currentHal, 'r+') as file:
+                text = file.read()
                 text += ('\n#####################################################################\n')
-                text += ('#The following ClearPath servo lines were added by PathPirate\n\n')
-                text += ('addf x-fault-not servo-thread\n')
-                text += ('addf y-fault-not servo-thread\n')
-                text += ('net x_fault_not hm2_[HOSTMOT2](BOARD).0.encoder.02.input-a x-fault-not.in\n')
-                text += ('net x_fault x-fault-not.out axis.0.amp-fault-in\n')
-                text += ('net y_fault_not hm2_[HOSTMOT2](BOARD).0.encoder.02.input-b y-fault-not.in\n')
-                text += ('net y_fault y-fault-not.out axis.1.amp-fault-in\n')
-                text += ('net z_fault hm2_[HOSTMOT2](BOARD).0.encoder.02.input-index axis.2.amp-fault-in\n')
+                text += ('# The following encoder lines were added by PathPirate\n\n')
+                text += ('unlinkp motion.spindle-speed-in\n')
+                text += ('net spindle-position hm2_5i25.0.encoder.00.position => motion.spindle-revs\n')
+                text += ('net spindle-velocity hm2_5i25.0.encoder.00.velocity => motion.spindle-speed-in\n')
+                text += ('net spindle-index-enable hm2_5i25.0.encoder.00.index-enable <=> motion.spindle-index-enable\n')
+                text += ('setp hm2_5i25.0.encoder.00.scale {}'.format(scale))
                 file.seek(0)
                 file.truncate()
                 file.write(text)
                 change = True
-                self.console.insert(tk.END, 'The following file has been successfully modified: ')
-                self.console.insert(tk.END, '{}\n'.format(self.currentHal), 'pink')
-            else:
-                self.console.insert(tk.END, 'The necessary modifications are already present in the following file: ')
+                self.console.insert(tk.END, 'Previous encoder information has been added to: ')
                 self.console.insert(tk.END, '{}\n'.format(self.currentHal), 'pink')
         if not os.path.exists(os.path.join(self.mesaPath, '5i25_t2_7i85s_dpll.bit')):
             copy(self.newBin, self.mesaPath)
