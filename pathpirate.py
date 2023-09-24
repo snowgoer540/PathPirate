@@ -395,11 +395,10 @@ class PathPirate:
             else:
                 self.console.insert(tk.END, 'The necessary modifications are already present in the following file: ')
                 self.console.insert(tk.END, '{}\n'.format(self.currentMillIni), 'pink')
-        self.console.insert(tk.END, 'The necessary firmwares have been copied to:\n')
         for file in [self.newMillBit, self.newMill7i92Bit, self.newMill7i92tBin]:
             copy(file, self.mesaPath)
-            self.console.insert(tk.END, '{}\n'.format(file), 'pink')
-
+        self.console.insert(tk.END, '\nThe necessary firmwares have been copied to:\n')
+        self.console.insert(tk.END, '{}\n'.format(self.mesaPath), 'pink')
         if change:
             self.restartRequired = True
             self.console.insert(tk.END, '\nA RESTART IS REQUIRED FOR CHANGES TO TAKE EFFECT!\n', 'white')
