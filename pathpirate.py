@@ -30,7 +30,6 @@ else:
     import tkFileDialog
     import tkSimpleDialog
     import tkMessageBox
-from subprocess import Popen, check_output, STDOUT
 from shutil import copy
 import os
 import json
@@ -61,40 +60,37 @@ class PathPirate:
         self.consoleFrame.pack(anchor=tk.NW, fill=tk.BOTH, expand=True)
 
         # set up buttons
-        self.AddHalshowButton = tk.Button(self.buttonFrame, text='ADD\nHALSHOW', command=self.addHalshow, height=2, padx=5)
-        self.AddHalshowButton.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        self.AddHalshowButton['state'] = 'disabled'
-        self.MaxVelButton = tk.Button(self.buttonFrame, text='MAX VEL\nTO RAPID', command=self.convertSlider, height=2, padx=5)
-        self.MaxVelButton.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        self.MaxVelButton['state'] = 'disabled'
-        self.AddEncoderButton = tk.Button(self.buttonFrame, text='ADD\nENCODER', command=self.addEncoder, height=2, padx=5)
-        self.AddEncoderButton.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        self.AddEncoderButton['state'] = 'disabled'
-        self.AddServosButton = tk.Button(self.buttonFrame, text='ADD\nSERVOS', command=self.addServos, height=2, padx=5)
-        self.AddServosButton.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        self.AddServosButton['state'] = 'disabled'
-        self.RevertAllButton = tk.Button(self.buttonFrame, text='REVERT\nALL', command=self.revertAll, height=2, padx=5)
-        self.RevertAllButton.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        self.RevertAllButton['state'] = 'disabled'
-        self.ExitButton = tk.Button(self.buttonFrame, text='EXIT', command=self.exitPathPirate, height=2, padx=5)
-        self.ExitButton.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        self.addHalshowButton = tk.Button(self.buttonFrame, text='ADD\nHALSHOW', command=self.addHalshow, height=2, padx=5)
+        self.addHalshowButton.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        self.addHalshowButton['state'] = 'disabled'
+        self.maxVelButton = tk.Button(self.buttonFrame, text='MAX VEL\nTO RAPID', command=self.convertSlider, height=2, padx=5)
+        self.maxVelButton.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        self.maxVelButton['state'] = 'disabled'
+        self.addEncoderButton = tk.Button(self.buttonFrame, text='ADD\nENCODER', command=self.addEncoder, height=2, padx=5)
+        self.addEncoderButton.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        self.addEncoderButton['state'] = 'disabled'
+        self.addServosButton = tk.Button(self.buttonFrame, text='ADD\nSERVOS', command=self.addServos, height=2, padx=5)
+        self.addServosButton.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        self.addServosButton['state'] = 'disabled'
+        self.revertAllButton = tk.Button(self.buttonFrame, text='REVERT\nALL', command=self.revertAll, height=2, padx=5)
+        self.revertAllButton.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        self.revertAllButton['state'] = 'disabled'
+        self.exitButton = tk.Button(self.buttonFrame, text='EXIT', command=self.exitPathPirate, height=2, padx=5)
+        self.exitButton.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
         # set up output text boxes
         self.machineInfo = tk.Text(self.versionFrame, padx=5, height=1, bg='black', fg='yellow', highlightthickness=0, bd=0)
         self.machineInfo.pack(fill=tk.BOTH, expand=True)
+        self.machineInfo.tag_configure('red', foreground='red')
         self.currentVersionInfo = tk.Text(self.versionFrame, padx=5, height=1, bg='black', fg='yellow', highlightthickness=0, bd=0)
         self.currentVersionInfo.pack(fill=tk.BOTH, expand=True)
+        self.currentVersionInfo.tag_configure('red', foreground='red')
         self.console = tk.Text(self.consoleFrame, padx=5, bg='black', fg='orange', highlightthickness=0)
         self.console.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         self.console.tag_configure('yellow', foreground='yellow')
         self.console.tag_configure('green', foreground='green')
-        self.console.tag_configure('orange', foreground='orange')
         self.console.tag_configure('red', foreground='red')
-        self.console.tag_configure('cyan', foreground='cyan')
         self.console.tag_configure('white', foreground='white')
-        self.console.tag_configure('pink', foreground='pink')
-        self.currentVersionInfo.tag_configure('red', foreground='red')
-        self.machineInfo.tag_configure('red', foreground='red')
 
         # add scroll bar to console text box
         self.scrollBar = tk.Scrollbar(self.consoleFrame, command=self.console.yview, width=15)
@@ -636,17 +632,17 @@ class PathPirate:
         elif self.machine == '15L Slant-PRO':
             self.clearPathLatheHal = os.path.join(self.pathPirateDir, 'files/configs/pathpirate_cpm_hsh_lathe.hal')
             self.clearPathLatheIni = os.path.join(self.pathPirateDir, 'files/configs/pathpirate_cpm_hsh_lathe.ini')
-            self.AddEncoderButton.pack_forget()
+            self.addEncoderButton.pack_forget()
             self.machineInfo.insert(tk.END, 'Machine Model is: {}. ADD ENCODER button has been hidden.\n'.format(self.machine))
         else:
-            self.AddEncoderButton.pack_forget()
-            self.AddServosButton.pack_forget()
+            self.addEncoderButton.pack_forget()
+            self.addServosButton.pack_forget()
             self.machineInfo.insert(tk.END, 'Machine Model is: {}. ADD ENCODER and ADD SERVOS buttons have been hidden.'.format(self.machine))
-        self.AddHalshowButton['state'] = 'normal'
-        self.MaxVelButton['state'] = 'normal'
-        self.AddEncoderButton['state'] = 'normal'
-        self.AddServosButton['state'] = 'normal'
-        self.RevertAllButton['state'] = 'normal'
+        self.addHalshowButton['state'] = 'normal'
+        self.maxVelButton['state'] = 'normal'
+        self.addEncoderButton['state'] = 'normal'
+        self.addServosButton['state'] = 'normal'
+        self.revertAllButton['state'] = 'normal'
 
     # Exits PathPirate and checks if the user would like to reboot automatically
     def exitPathPirate(self, event=None):
