@@ -79,6 +79,9 @@ class ServoBrake:
         self.current_version_info = tk.Text(self.version_frame, padx=5, height=1, bg='black', fg='yellow', highlightthickness=0, bd=0)
         self.current_version_info.pack(fill=tk.BOTH, expand=True)
         self.current_version_info.tag_configure('red', foreground='red')
+        self.board_info = tk.Text(self.version_frame, padx=5, height=1, bg='black', fg='yellow', highlightthickness=0, bd=0)
+        self.board_info.pack(fill=tk.BOTH, expand=True)
+        self.board_info.tag_configure('red', foreground='red')
         self.console = tk.Text(self.console_frame, padx=5, bg='black', fg='orange', highlightthickness=0)
         self.console.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         self.console.tag_configure('yellow', foreground='yellow')
@@ -140,13 +143,25 @@ class ServoBrake:
     # Release the servo brake (energize the coil)
     # Brake is gpio.023 on EMCV1.5 machines
     def release_brake(self, event=None):
-        self.console.insert(tk.END, '\nRELEASING SERVO BRAKE', 'yellow')
+        self.console.insert(tk.END, '\nRELEASING SERVO BRAKE\n', 'yellow')
         try:
-            if self.board:
-                CALL([self.halcmd, 'unlinkp', 'hm2_{}.0.pwmgen.00.enable'.format(self.board)])
-                CALL([self.halcmd, 'setp', 'hm2_{}.0.pwmgen.00.enable'.format(self.board), 'true'])
-            CALL([self.halcmd, 'unlinkp', 'hm2_{}.0.gpio.{}.out'.format(self.board, self.gpio)])
-            CALL([self.halcmd, 'setp', 'hm2_{}.0.gpio.{}.out'.format(self.board, self.gpio), 'true'])
+            if self.board != 'EMC1':
+                out, err = self.send_commands(self.halcmd, 'unlinkp', 'hm2_{}.0.pwmgen.00.enable'.format(self.board))
+                if err != '':
+                    self.release_brake_button['state'] = 'disabled'
+                    self.console.insert(tk.END, '\n{}\n'.format(err), 'red')
+                    self.console.insert(tk.END, 'Pin not found, unable to proceed.\n', 'cyan')
+                    self.console.see(tk.END)
+                    return
+                out, err = self.send_commands(self.halcmd, 'setp', 'hm2_{}.0.pwmgen.00.enable'.format(self.board), 'true')
+            out, err = self.send_commands(self.halcmd, 'unlinkp', 'hm2_{}.0.gpio.{}.out'.format(self.board, self.gpio))
+            if err != '':
+                self.release_brake_button['state'] = 'disabled'
+                self.console.insert(tk.END, '\n{}\n'.format(err), 'red')
+                self.console.insert(tk.END, 'Pin not found, unable to proceed.\n', 'cyan')
+                self.console.see(tk.END)
+                return
+            out, err = self.send_commands(self.halcmd, 'setp', 'hm2_{}.0.gpio.{}.out'.format(self.board, self.gpio), 'true')
         except Exception as e:
             self.console.insert(tk.END, '\nThe following system error has occured:\n{}\n'.format(e), 'red')
             self.release_brake_button['state'] = 'disabled'
@@ -164,11 +179,35 @@ class ServoBrake:
         self.exit_button['state'] = 'normal'
         self.engage_brake_button['state'] = 'disabled'
         try:
-            CALL([self.halcmd, 'setp', 'hm2_{}.0.gpio.{}.out'.format(self.board, self.gpio), 'false'])
-            CALL([self.halcmd, 'linkps', 'hm2_{}.0.gpio.{}.out'.format(self.board, self.gpio), '{}-axis-brake-release'.format(self.brake_axis)])
-            if self.board:
-                CALL([self.halcmd, 'setp', 'hm2_{}.0.pwmgen.00.enable'.format(self.board), 'false'])
-                CALL([self.halcmd, 'linkps', 'hm2_{}.0.pwmgen.00.enable'.format(self.board), 'estop'])
+            out, err = self.send_commands(self.halcmd, 'setp', 'hm2_{}.0.gpio.{}.out'.format(self.board, self.gpio), 'false')
+            if err != '':
+                self.engage_brake_button['state'] = 'disabled'
+                self.console.insert(tk.END, '\n{}\n'.format(err), 'red')
+                self.console.insert(tk.END, 'Pin not found, unable to proceed.\n', 'cyan')
+                self.console.see(tk.END)
+                return
+            out, err = self.send_commands(self.halcmd, 'linkps', 'hm2_{}.0.gpio.{}.out'.format(self.board, self.gpio), '{}-axis-brake-release'.format(self.brake_axis))
+            if err != '':
+                self.engage_brake_button['state'] = 'disabled'
+                self.console.insert(tk.END, '\n{}\n'.format(err), 'red')
+                self.console.insert(tk.END, 'Link unsuccessful, unable to proceed.\n', 'cyan')
+                self.console.see(tk.END)
+                return
+            if self.board != 'EMC1':
+                out, err = self.send_commands(self.halcmd, 'setp', 'hm2_{}.0.pwmgen.00.enable'.format(self.board), 'false')
+                if err != '':
+                    self.engage_brake_button['state'] = 'disabled'
+                    self.console.insert(tk.END, '\n{}\n'.format(err), 'red')
+                    self.console.insert(tk.END, 'Pin not found, unable to proceed.\n', 'cyan')
+                    self.console.see(tk.END)
+                    return
+                out, err = self.send_commands(self.halcmd, 'linkps', 'hm2_{}.0.pwmgen.00.enable'.format(self.board), 'estop')
+                if err != '':
+                    self.engage_brake_button['state'] = 'disabled'
+                    self.console.insert(tk.END, '\n{}\n'.format(err), 'red')
+                    self.console.insert(tk.END, 'Link unsuccessful, unable to proceed.\n', 'cyan')
+                    self.console.see(tk.END)
+                    return
         except Exception as e:
             self.console.insert(tk.END, 'The following system error has occured:\n{}\n'.format(e), 'red')
             return
@@ -221,12 +260,12 @@ class ServoBrake:
             with open(hal_file, 'r') as file:
                 text = file.read()
                 if not 'PathPirate' in text:
-                    self.machine_info.insert(tk.END, 'Machine Model is {}. No servos or PathPirate config mods present. Unable to proceed.\n'.format(self.machine), 'red')
+                    self.machine_info.insert(tk.END, 'Machine Model is {}. No servos or PathPirate config mods present. Unable to proceed.'.format(self.machine), 'red')
                     return
-            self.machine_info.insert(tk.END, 'Machine Model is: {}\n'.format(self.machine))
+            self.machine_info.insert(tk.END, 'Machine Model is: {}'.format(self.machine))
             self.gpio = '024'
         elif self.machine in ['770M+', '770MX', '1100M+', '1100MX']:
-            self.machine_info.insert(tk.END, 'Machine Model is: {}\n'.format(self.machine))
+            self.machine_info.insert(tk.END, 'Machine Model is: {}'.format(self.machine))
             self.gpio = '023'
         else:
             self.machine_info.insert(tk.END, 'Machine Model {} is unsupported. Unable to proceed.\n'.format(self.machine), 'red')
@@ -235,17 +274,26 @@ class ServoBrake:
             self.brake_axis = 'x'
         elif self.machine_class == 'mill' and not self.rapid_turn:
             self.brake_axis = 'z'
-
+        # check for board type
+        for board in ['5i25', '7i92', '7i92T', 'EMC1']:
+            out, err = self.send_commands(self.halcmd, 'getp', 'hm2_{}.0.gpio.001.out'.format(board))
+            if out != '':
+                self.board = board
+                self.board_info.insert(tk.END, 'Machine Board is: {}'.format(self.board))
+                break
+        if self.board == '':
+            self.board_info.insert(tk.END, 'ERROR: Unable to determine machine board type! Unable to proceed!', 'red')
+            return
         #keeps the upcoming dialogs on top
         self.main.lower()
-        estop_state, running = self.path_pilot_state()
-        if not running:
+        estop_state, running = self.send_commands(self.halcmd, 'gets', 'estop')
+        if running != '':
             error = tkMessageBox.showinfo('ERROR', 'PathPilot is not running.\n\nRestart this program after starting PathPilot.')
             return
-        if estop_state.strip() != 'FALSE':
+        if estop_state.strip() == 'TRUE':
             try_again = tkMessageBox.askokcancel('ERROR', 'Machine must be in E-STOP state.\n\nE-STOP the machine and press OK to try again.')
             if try_again:
-                 estop_state, running = self.path_pilot_state()
+                 estop_state, running = self.send_commands(self.halcmd, 'gets', 'estop')
                  if estop_state.strip() != 'FALSE':
                      try_again = tkMessageBox.showinfo('ERROR', 'Machine must be in E-STOP state.\n\nE-STOP the machine and restart this program.')
                      return
@@ -272,26 +320,10 @@ ANY DAMAGES OR INJURIES INCURRED FROM THE USE OF THIS SOFTWARE.'''
             self.console.insert(tk.END, '\n\nUSER DECLINED\n', 'bold_red')
             return
 
-        command = Popen([self.halcmd, 'getp', 'hm2_5i25.0.gpio.001.out'], stdout=PIPE, stderr=PIPE)
-        out, error = command.communicate()
-        if out and not error:
-            self.board = '5i25'
-            return
-        command = Popen([self.halcmd, 'getp', 'hm2_7i92.0.gpio.001.out'], stdout=PIPE, stderr=PIPE)
-        out, error = command.communicate()
-        if out and not error:
-            self.board = '7i92'
-            return
-        command = Popen([self.halcmd, 'getp', 'hm2_7i92T.0.gpio.001.out'], stdout=PIPE, stderr=PIPE)
-        out, error = command.communicate()
-        if out and not error:
-            self.board = '7i92T'
-            return
-
-    def path_pilot_state(self):
-        state = Popen([self.halcmd, 'gets', 'estop'], stdout=PIPE, stderr=PIPE)
-        estop_state, running = state.communicate()
-        return estop_state, running
+    def send_commands(self, *args):
+        state = Popen(args, stdout=PIPE, stderr=PIPE)
+        out, err = state.communicate()
+        return out, err
 
     # Exits PathPirate and checks if the user would like to reboot automatically
     def exit_path_pirate(self, event=None):
