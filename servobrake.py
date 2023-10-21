@@ -145,7 +145,7 @@ class ServoBrake:
     def release_brake(self, event=None):
         self.console.insert(tk.END, '\nRELEASING SERVO BRAKE\n', 'yellow')
         out, err = self.send_commands(self.halcmd, 'gets', 'estop')
-        if out == 'TRUE':
+        if out.strip() != 'FALSE':
             error = tkMessageBox.showinfo('ERROR', 'PathPilot has been RESET.\n\nPathPilot must be in E-STOP state (reset blinking).')
             return
         out, err = self.send_commands(self.halcmd, 'getp', 'tormach.machine-ok')
@@ -154,7 +154,7 @@ class ServoBrake:
             return
         if self.board != 'EMC1':
             out, err = self.send_commands(self.halcmd, 'unlinkp', 'hm2_{}.0.pwmgen.00.enable'.format(self.board))
-            if err != '':
+            if err.strip() != '':
                 self.release_brake_button['state'] = 'disabled'
                 self.console.insert(tk.END, '\n{}\n'.format(err), 'red')
                 self.console.insert(tk.END, 'Pin not found, unable to proceed.\n', 'cyan')
@@ -162,7 +162,7 @@ class ServoBrake:
                 return
             out, err = self.send_commands(self.halcmd, 'setp', 'hm2_{}.0.pwmgen.00.enable'.format(self.board), 'true')
         out, err = self.send_commands(self.halcmd, 'unlinkp', 'hm2_{}.0.gpio.{}.out'.format(self.board, self.gpio))
-        if err != '':
+        if err.strip() != '':
             self.release_brake_button['state'] = 'disabled'
             self.console.insert(tk.END, '\n{}\n'.format(err), 'red')
             self.console.insert(tk.END, 'Pin not found, unable to proceed.\n', 'cyan')
@@ -181,7 +181,7 @@ class ServoBrake:
     def engage_brake(self, event=None):
         self.console.insert(tk.END, '\nENGAGING SERVO BRAKE\n', 'orange')
         out, err = self.send_commands(self.halcmd, 'gets', 'estop')
-        if out == 'TRUE':
+        if out.strip() != 'FALSE':
             error = tkMessageBox.showinfo('ERROR', 'PathPilot has been RESET.\n\nPathPilot must be in E-STOP state (reset blinking).')
             return
         out, err = self.send_commands(self.halcmd, 'getp', 'tormach.machine-ok')
@@ -191,14 +191,14 @@ class ServoBrake:
         self.exit_button['state'] = 'normal'
         self.engage_brake_button['state'] = 'disabled'
         out, err = self.send_commands(self.halcmd, 'setp', 'hm2_{}.0.gpio.{}.out'.format(self.board, self.gpio), 'false')
-        if err != '':
+        if err.strip() != '':
             self.engage_brake_button['state'] = 'disabled'
             self.console.insert(tk.END, '\n{}\n'.format(err), 'red')
             self.console.insert(tk.END, 'Pin not found, unable to proceed.\n', 'cyan')
             self.console.see(tk.END)
             return
         out, err = self.send_commands(self.halcmd, 'linkps', 'hm2_{}.0.gpio.{}.out'.format(self.board, self.gpio), '{}-axis-brake-release'.format(self.brake_axis))
-        if err != '':
+        if err.strip() != '':
             self.engage_brake_button['state'] = 'disabled'
             self.console.insert(tk.END, '\n{}\n'.format(err), 'red')
             self.console.insert(tk.END, 'Link unsuccessful, unable to proceed.\n', 'cyan')
@@ -206,14 +206,14 @@ class ServoBrake:
             return
         if self.board != 'EMC1':
             out, err = self.send_commands(self.halcmd, 'setp', 'hm2_{}.0.pwmgen.00.enable'.format(self.board), 'false')
-            if err != '':
+            if err.strip() != '':
                 self.engage_brake_button['state'] = 'disabled'
                 self.console.insert(tk.END, '\n{}\n'.format(err), 'red')
                 self.console.insert(tk.END, 'Pin not found, unable to proceed.\n', 'cyan')
                 self.console.see(tk.END)
                 return
             out, err = self.send_commands(self.halcmd, 'linkps', 'hm2_{}.0.pwmgen.00.enable'.format(self.board), 'estop')
-            if err != '':
+            if err.strip() != '':
                 self.engage_brake_button['state'] = 'disabled'
                 self.console.insert(tk.END, '\n{}\n'.format(err), 'red')
                 self.console.insert(tk.END, 'Link unsuccessful, unable to proceed.\n', 'cyan')
@@ -284,7 +284,7 @@ class ServoBrake:
         #keeps the upcoming dialogs on top
         self.main.lower()
         out, err = self.send_commands(self.halcmd, 'gets', 'estop')
-        if err != '':
+        if err.strip() != '':
             error = tkMessageBox.showinfo('ERROR', 'PathPilot is not running.\n\nRestart this program after starting PathPilot.')
             return
         if out.strip() == 'TRUE':
@@ -305,7 +305,7 @@ class ServoBrake:
         # check for board type
         for board in ['5i25', '7i92', '7i92T', 'EMC1']:
             out, err = self.send_commands(self.halcmd, 'getp', 'hm2_{}.0.gpio.001.out'.format(board))
-            if out != '':
+            if out.strip() != '':
                 self.board = board
                 self.board_info.insert(tk.END, 'Machine Board is: {}'.format(self.board))
                 break
