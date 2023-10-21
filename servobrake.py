@@ -144,29 +144,33 @@ class ServoBrake:
     # Brake is gpio.023 on EMCV1.5 machines
     def release_brake(self, event=None):
         self.console.insert(tk.END, '\nRELEASING SERVO BRAKE\n', 'yellow')
-        try:
-            if self.board != 'EMC1':
-                out, err = self.send_commands(self.halcmd, 'unlinkp', 'hm2_{}.0.pwmgen.00.enable'.format(self.board))
-                if err != '':
-                    self.release_brake_button['state'] = 'disabled'
-                    self.console.insert(tk.END, '\n{}\n'.format(err), 'red')
-                    self.console.insert(tk.END, 'Pin not found, unable to proceed.\n', 'cyan')
-                    self.console.see(tk.END)
-                    return
-                out, err = self.send_commands(self.halcmd, 'setp', 'hm2_{}.0.pwmgen.00.enable'.format(self.board), 'true')
-            out, err = self.send_commands(self.halcmd, 'unlinkp', 'hm2_{}.0.gpio.{}.out'.format(self.board, self.gpio))
+        out, err = self.send_commands(self.halcmd, 'gets', 'estop')
+        if out == 'TRUE':
+            error = tkMessageBox.showinfo('ERROR', 'PathPilot has been RESET.\n\nPathPilot must be in E-STOP state (reset blinking).')
+            return
+        out, err = self.send_commands(self.halcmd, 'getp', 'tormach.machine-ok')
+        if out.strip() != 'TRUE':
+            try_again = tkMessageBox.showinfo('ERROR', 'Machine must be powered ON.\n\nFollow these steps:\n1. Reset physical E-STOP.\n2. Press green button.\n3. Do not click RESET in PathPirate.\n4. Press OK to try again.')
+            return
+        if self.board != 'EMC1':
+            out, err = self.send_commands(self.halcmd, 'unlinkp', 'hm2_{}.0.pwmgen.00.enable'.format(self.board))
             if err != '':
                 self.release_brake_button['state'] = 'disabled'
                 self.console.insert(tk.END, '\n{}\n'.format(err), 'red')
                 self.console.insert(tk.END, 'Pin not found, unable to proceed.\n', 'cyan')
                 self.console.see(tk.END)
                 return
-            out, err = self.send_commands(self.halcmd, 'setp', 'hm2_{}.0.gpio.{}.out'.format(self.board, self.gpio), 'true')
-        except Exception as e:
-            self.console.insert(tk.END, '\nThe following system error has occured:\n{}\n'.format(e), 'red')
+            out, err = self.send_commands(self.halcmd, 'setp', 'hm2_{}.0.pwmgen.00.enable'.format(self.board), 'true')
+        out, err = self.send_commands(self.halcmd, 'unlinkp', 'hm2_{}.0.gpio.{}.out'.format(self.board, self.gpio))
+        if err != '':
             self.release_brake_button['state'] = 'disabled'
+            self.console.insert(tk.END, '\n{}\n'.format(err), 'red')
+            self.console.insert(tk.END, 'Pin not found, unable to proceed.\n', 'cyan')
+            self.console.see(tk.END)
             return
-        self.console.insert(tk.END, ' - servo must be re-engaged before program may be exited.\n', 'cyan')
+        out, err = self.send_commands(self.halcmd, 'setp', 'hm2_{}.0.gpio.{}.out'.format(self.board, self.gpio), 'true')
+        self.console.insert(tk.END, 'Servo brake must be re-engaged before program may be exited.\n', 'cyan')
+        self.console.insert(tk.END, 'Axis ready for auto-tuning process.\n', 'cyan')
         self.release_brake_button['state'] = 'disabled'
         self.exit_button['state'] = 'disabled'
         self.engage_brake_button['state'] = 'normal'
@@ -176,42 +180,45 @@ class ServoBrake:
     # Brake is gpio.023 on EMCV1.5 machines
     def engage_brake(self, event=None):
         self.console.insert(tk.END, '\nENGAGING SERVO BRAKE\n', 'orange')
+        out, err = self.send_commands(self.halcmd, 'gets', 'estop')
+        if out == 'TRUE':
+            error = tkMessageBox.showinfo('ERROR', 'PathPilot has been RESET.\n\nPathPilot must be in E-STOP state (reset blinking).')
+            return
+        out, err = self.send_commands(self.halcmd, 'getp', 'tormach.machine-ok')
+        if out.strip() != 'TRUE':
+            try_again = tkMessageBox.showinfo('ERROR', 'Machine must be powered ON.\n\nFollow these steps:\n1. Reset physical E-STOP.\n2. Press green button.\n3. Do not click RESET in PathPirate.\n4. Press OK to try again.')
+            return
         self.exit_button['state'] = 'normal'
         self.engage_brake_button['state'] = 'disabled'
-        try:
-            out, err = self.send_commands(self.halcmd, 'setp', 'hm2_{}.0.gpio.{}.out'.format(self.board, self.gpio), 'false')
+        out, err = self.send_commands(self.halcmd, 'setp', 'hm2_{}.0.gpio.{}.out'.format(self.board, self.gpio), 'false')
+        if err != '':
+            self.engage_brake_button['state'] = 'disabled'
+            self.console.insert(tk.END, '\n{}\n'.format(err), 'red')
+            self.console.insert(tk.END, 'Pin not found, unable to proceed.\n', 'cyan')
+            self.console.see(tk.END)
+            return
+        out, err = self.send_commands(self.halcmd, 'linkps', 'hm2_{}.0.gpio.{}.out'.format(self.board, self.gpio), '{}-axis-brake-release'.format(self.brake_axis))
+        if err != '':
+            self.engage_brake_button['state'] = 'disabled'
+            self.console.insert(tk.END, '\n{}\n'.format(err), 'red')
+            self.console.insert(tk.END, 'Link unsuccessful, unable to proceed.\n', 'cyan')
+            self.console.see(tk.END)
+            return
+        if self.board != 'EMC1':
+            out, err = self.send_commands(self.halcmd, 'setp', 'hm2_{}.0.pwmgen.00.enable'.format(self.board), 'false')
             if err != '':
                 self.engage_brake_button['state'] = 'disabled'
                 self.console.insert(tk.END, '\n{}\n'.format(err), 'red')
                 self.console.insert(tk.END, 'Pin not found, unable to proceed.\n', 'cyan')
                 self.console.see(tk.END)
                 return
-            out, err = self.send_commands(self.halcmd, 'linkps', 'hm2_{}.0.gpio.{}.out'.format(self.board, self.gpio), '{}-axis-brake-release'.format(self.brake_axis))
+            out, err = self.send_commands(self.halcmd, 'linkps', 'hm2_{}.0.pwmgen.00.enable'.format(self.board), 'estop')
             if err != '':
                 self.engage_brake_button['state'] = 'disabled'
                 self.console.insert(tk.END, '\n{}\n'.format(err), 'red')
                 self.console.insert(tk.END, 'Link unsuccessful, unable to proceed.\n', 'cyan')
                 self.console.see(tk.END)
                 return
-            if self.board != 'EMC1':
-                out, err = self.send_commands(self.halcmd, 'setp', 'hm2_{}.0.pwmgen.00.enable'.format(self.board), 'false')
-                if err != '':
-                    self.engage_brake_button['state'] = 'disabled'
-                    self.console.insert(tk.END, '\n{}\n'.format(err), 'red')
-                    self.console.insert(tk.END, 'Pin not found, unable to proceed.\n', 'cyan')
-                    self.console.see(tk.END)
-                    return
-                out, err = self.send_commands(self.halcmd, 'linkps', 'hm2_{}.0.pwmgen.00.enable'.format(self.board), 'estop')
-                if err != '':
-                    self.engage_brake_button['state'] = 'disabled'
-                    self.console.insert(tk.END, '\n{}\n'.format(err), 'red')
-                    self.console.insert(tk.END, 'Link unsuccessful, unable to proceed.\n', 'cyan')
-                    self.console.see(tk.END)
-                    return
-        except Exception as e:
-            self.console.insert(tk.END, 'The following system error has occured:\n{}\n'.format(e), 'red')
-            return
-        self.console.insert(tk.END, ' - servo ready for auto-tuning process.\n', 'cyan')
         self.release_brake_button['state'] = 'normal'
         self.console.see(tk.END)
 
