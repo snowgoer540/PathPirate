@@ -281,30 +281,30 @@ class ServoBrake:
             error = tkMessageBox.showinfo('ERROR', 'PathPilot is not running.\n\nRestart this program after starting PathPilot.')
             return
         if out.strip() == 'TRUE':
-            try_again = tkMessageBox.askokcancel('ERROR', 'Machine must be in E-STOP state.\n\nE-STOP the machine and press OK to try again.')
+            try_again = tkMessageBox.askokcancel('ERROR', 'Machine must be in E-STOP state (RESET blinking).\n\nE-STOP the machine and press OK to try again.')
             if try_again:
                  out, err = self.send_commands(self.halcmd, 'gets', 'estop')
                  if out.strip() == 'TRUE':
-                     try_again = tkMessageBox.showinfo('ERROR', 'Machine must be in E-STOP state (RESET blinking).\n\nE-STOP the machine and restart this program.')
+                     try_again = tkMessageBox.showinfo('ERROR', 'Machine must be in E-STOP state (RESET blinking).\n\nE-STOP the machine and restart this program to try again.')
                      return
-         out, err = self.send_commands(self.halcmd, 'getp', 'tormach.machine-ok')
-         if out.strip() != 'TRUE':
-             try_again = tkMessageBox.askokcancel('ERROR', 'Machine must be powered ON.\nHardware E-STOP reset, Green button pushed\nDo not click RESET in PathPirate\n\nTurn the machine ON and press OK to try again.')
-             if try_again:
-                  out, err = self.send_commands(self.halcmd, 'getp', 'tormach.machine-ok')
-                  if out.strip() != 'TRUE':
-                      try_again = tkMessageBox.showinfo('ERROR', 'Machine must be powered ON.\nHardware E-STOP reset, Green button pushed\nDo not click RESET in PathPirate\n\nTurn the machine ON and restart this program.')
-                      return
-         # check for board type
-         for board in ['5i25', '7i92', '7i92T', 'EMC1']:
-             out, err = self.send_commands(self.halcmd, 'getp', 'hm2_{}.0.gpio.001.out'.format(board))
-             if out != '':
-                 self.board = board
-                 self.board_info.insert(tk.END, 'Machine Board is: {}'.format(self.board))
-                 break
-         if self.board == '':
-             self.board_info.insert(tk.END, 'ERROR: Unable to determine machine board type! Unable to proceed!', 'red')
-             return
+        out, err = self.send_commands(self.halcmd, 'getp', 'tormach.machine-ok')
+        if out.strip() != 'TRUE':
+            try_again = tkMessageBox.askokcancel('ERROR', 'Machine must be powered ON.\n\nFollow these steps:\n1. Reset physical E-STOP.\n2. Press green button.\n3. Do not click RESET in PathPirate.\n4. Press OK to try again.')
+            if try_again:
+                out, err = self.send_commands(self.halcmd, 'getp', 'tormach.machine-ok')
+                if out.strip() != 'TRUE':
+                    try_again = tkMessageBox.showinfo('ERROR', 'Machine must be powered ON.\n\nFollow these steps:\n1. Reset physical E-STOP.\n2. Press green button.\n3. Do not click RESET in PathPirate.\n4. Restart this program to try again.')
+                    return
+        # check for board type
+        for board in ['5i25', '7i92', '7i92T', 'EMC1']:
+            out, err = self.send_commands(self.halcmd, 'getp', 'hm2_{}.0.gpio.001.out'.format(board))
+            if out != '':
+                self.board = board
+                self.board_info.insert(tk.END, 'Machine Board is: {}'.format(self.board))
+                break
+        if self.board == '':
+            self.board_info.insert(tk.END, 'ERROR: Unable to determine machine board type! Unable to proceed!', 'red')
+            return
         warning_message = '''
 MANUALLY CONTROLLING THE SERVO BRAKE CAN BE EXTREMELY DANGEROUS!
 
