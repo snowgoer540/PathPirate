@@ -22,15 +22,10 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 import sys
 if sys.version_info[0] > 2:
     import tkinter as tk
-    import tkinter.filedialog as tkFileDialog
-    import tkinter.simpledialog as tkSimpleDialog
     import tkinter.messagebox as tkMessageBox
 else:
     import Tkinter as tk
-    import tkFileDialog
-    import tkSimpleDialog
     import tkMessageBox
-from subprocess import call as CALL
 from subprocess import Popen, PIPE
 import os
 import json
@@ -142,15 +137,15 @@ class ServoBrake:
 
     # Release the servo brake (energize the coil)
     # Brake is gpio.023 on EMCV1.5 machines
-    def release_brake(self, event=None):
+    def release_brake(self):
         self.console.insert(tk.END, '\nRELEASING SERVO BRAKE\n', 'yellow')
         out, err = self.send_commands(self.halcmd, 'gets', 'estop')
         if out.strip() != 'FALSE':
-            error = tkMessageBox.showinfo('ERROR', 'PathPilot has been RESET.\n\nPathPilot must be in E-STOP state (reset blinking).')
+            tkMessageBox.showinfo('ERROR', 'PathPilot has been RESET.\n\nPathPilot must be in E-STOP state (reset blinking).')
             return
         out, err = self.send_commands(self.halcmd, 'getp', 'tormach.machine-ok')
         if out.strip() != 'TRUE':
-            try_again = tkMessageBox.showinfo('ERROR', 'Machine must be powered ON.\n\nFollow these steps:\n1. Reset physical E-STOP.\n2. Press green button.\n3. Do not click RESET in PathPirate.\n4. Press OK to try again.')
+            tkMessageBox.showinfo('ERROR', 'Machine must be powered ON.\n\nFollow these steps:\n1. Reset physical E-STOP.\n2. Press green button.\n3. Do not click RESET in PathPirate.\n4. Press OK to try again.')
             return
         if self.board != 'EMC1':
             out, err = self.send_commands(self.halcmd, 'unlinkp', 'hm2_{}.0.pwmgen.00.enable'.format(self.board))
@@ -178,15 +173,15 @@ class ServoBrake:
 
     # Engage the servo brake (de-energize the coil)
     # Brake is gpio.023 on EMCV1.5 machines
-    def engage_brake(self, event=None):
+    def engage_brake(self):
         self.console.insert(tk.END, '\nENGAGING SERVO BRAKE\n', 'orange')
         out, err = self.send_commands(self.halcmd, 'gets', 'estop')
         if out.strip() != 'FALSE':
-            error = tkMessageBox.showinfo('ERROR', 'PathPilot has been RESET.\n\nPathPilot must be in E-STOP state (reset blinking).')
+            tkMessageBox.showinfo('ERROR', 'PathPilot has been RESET.\n\nPathPilot must be in E-STOP state (reset blinking).')
             return
         out, err = self.send_commands(self.halcmd, 'getp', 'tormach.machine-ok')
         if out.strip() != 'TRUE':
-            try_again = tkMessageBox.showinfo('ERROR', 'Machine must be powered ON.\n\nFollow these steps:\n1. Reset physical E-STOP.\n2. Press green button.\n3. Do not click RESET in PathPirate.\n4. Press OK to try again.')
+            tkMessageBox.showinfo('ERROR', 'Machine must be powered ON.\n\nFollow these steps:\n1. Reset physical E-STOP.\n2. Press green button.\n3. Do not click RESET in PathPirate.\n4. Press OK to try again.')
             return
         self.exit_button['state'] = 'normal'
         self.engage_brake_button['state'] = 'disabled'
@@ -223,7 +218,7 @@ class ServoBrake:
         self.console.see(tk.END)
 
     # Get the latest version number and machine model
-    def get_version(self, event=None):
+    def get_version(self):
         if not os.path.exists(self.tmc):
             self.current_version_info.insert(tk.END, 'ERROR: ~/tmc does not exist, is PathPilot installed?\n', 'red')
             return
@@ -285,7 +280,7 @@ class ServoBrake:
         self.main.lower()
         out, err = self.send_commands(self.halcmd, 'gets', 'estop')
         if err.strip() != '':
-            error = tkMessageBox.showinfo('ERROR', 'PathPilot is not running.\n\nRestart this program after starting PathPilot.')
+            tkMessageBox.showinfo('ERROR', 'PathPilot is not running.\n\nRestart this program after starting PathPilot.')
             return
         if out.strip() == 'TRUE':
             try_again = tkMessageBox.askokcancel('ERROR', 'Machine must be in E-STOP state (RESET blinking).\n\nE-STOP the machine and press OK to try again.')
@@ -341,14 +336,14 @@ ANY DAMAGES OR INJURIES INCURRED FROM THE USE OF THIS SOFTWARE.'''
         return out, err
 
     # Exits PathPirate and checks if the user would like to reboot automatically
-    def exit_path_pirate(self, event=None):
+    def exit_path_pirate(self):
         exit = tkMessageBox.askokcancel('EXIT', 'Are you sure?')
         if exit:
             self.main.destroy()
         else:
             pass
 
-    def exit_pass(self, event=None):
+    def exit_pass(self):
         pass
 
 if __name__ == '__main__':

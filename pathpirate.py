@@ -22,12 +22,10 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 import sys
 if sys.version_info[0] > 2:
     import tkinter as tk
-    import tkinter.filedialog as tkFileDialog
     import tkinter.simpledialog as tkSimpleDialog
     import tkinter.messagebox as tkMessageBox
 else:
     import Tkinter as tk
-    import tkFileDialog
     import tkSimpleDialog
     import tkMessageBox
 from shutil import copy
@@ -319,7 +317,6 @@ class PathPirate:
     def addEncoder(self, event=None):
         change = False
         missing = False
-        mesa = False
         self.console.insert(tk.END, '\n--------------\nADDING ENCODER\n--------------\n', 'yellow')
         # initialvalue is set to -1440 as a perk of being the author (that's my encoder's scale) :-)
         scale = self.askinteger(title='ENCODER SCALE', prompt='Enter the encoder scale:', initialvalue='-1440', parent=self.main)
@@ -411,8 +408,6 @@ class PathPirate:
     def addServosMill(self, event=None):
         self.console.insert(tk.END, '\n-----------------------\nADDING CLEARPATH SERVOS\n-----------------------\n', 'yellow')
         missing = False
-        change = False
-        mesa = False
         encoder = False
         for file in [self.currentMillHal, self.currentMillIni, self.currentRapidTurnHal, self.currentRapidTurnIni, self.clearPathMillHal, self.clearPathMillIni, self.current7i92MillIni, self.current7i92RapidTurnIni, self.clearPathRapidTurnHal, self.clearPathRapidTurnIni, self.clearPathMill7i92Ini, self.clearPath7i92RapidTurnIni, self.newMill7i92Bit, self.newMill7i92tBin, self.newMillBit, self.uiLathe]:
             if not os.path.exists(file):
@@ -501,8 +496,6 @@ class PathPirate:
     def addServosLathe(self, event=None):
         self.console.insert(tk.END, '\n-----------------------\nADDING CLEARPATH SERVOS\n-----------------------\n', 'yellow')
         missing = False
-        change = False
-        mesa = False
         for file in [self.currentLatheHal, self.currentLatheIni, self.clearPathLatheHal, self.clearPathLatheIni, self.newLatheBin]:
             if not os.path.exists(file):
                 self.console.insert(tk.END, 'The following required file is missing: ', 'red')
@@ -535,7 +528,6 @@ class PathPirate:
         self.console.insert(tk.END, '\n---------------------\nREVERTING ALL CHANGES\n---------------------\n', 'yellow')
         change = False
         halshow = False
-        mesa = False
         halshowPath = os.path.join(self.sourcePath, 'halshow.tcl')
         cbuttonPath = os.path.join(self.sourcePath, 'cbutton.tcl')
         try:
@@ -555,7 +547,6 @@ class PathPirate:
                         os.remove(tempFile)
             for firmware in [self.pathPirateMillFirmware, self.pathPirateMill7i92Firmware, self.pathPirateMill7i92tFirmware, self.pathPirateLatheFirmware]:
                 if os.path.exists(firmware):
-                    mesa = True
                     os.remove(firmware)
             for file in [halshowPath, cbuttonPath]:
                 if os.path.exists(file):
