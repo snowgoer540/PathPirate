@@ -286,6 +286,8 @@ net z-axis-brake-release z-home2hstop.brake-release hm2_[HOSTMOT2](BOARD).0.gpio
 setp hm2_[HOSTMOT2](BOARD).0.gpio.001.is_output        1
 setp hm2_[HOSTMOT2](BOARD).0.gpio.001.is_opendrain     0
 net coolant-flood    hm2_[HOSTMOT2](BOARD).0.gpio.001.out
+
+# Common coolant pins / signals (pass through GUI hal pins in postgui config)
 net coolant-flood-io iocontrol.0.coolant-flood
 net coolant-mist-io  iocontrol.0.coolant-mist
 
