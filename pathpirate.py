@@ -37,7 +37,8 @@ class PathPirate:
     def __init__(self):
         # set up the main window
         self.main = tk.Tk()
-        self.main.title("PathPirate Configurator v1.2 for Tormach's PathPilot")
+        self.main.title("PathPirate Configurator v1.3 for Tormach's PathPilot")
+        self.versionList = ['v2.9.2', 'v2.9.3', 'v2.9.4', 'v2.9.5', 'v2.9.6', 'v2.10.0', 'v2.10.1']
         winWidth = 1000
         winHeight = 700
         screenWidth = self.main.winfo_screenwidth()
@@ -587,8 +588,9 @@ class PathPirate:
         with open(versionFile, 'r') as jsonFile:
             versionData = json.load(jsonFile)
         self.currentVer = versionData['version']
-        if not self.currentVer.split('-')[0] in ['v2.9.2', 'v2.9.3', 'v2.9.4', 'v2.9.5', 'v2.9.6', 'v2.10.0']:
+        if not self.currentVer.split('-')[0] in self.versionList:
             self.currentVersionInfo.insert(tk.END, 'ERROR: PathPirate is not compatible with version {}! Unable to proceed!\n'.format(self.currentVer), 'red')
+            self.console.insert(tk.END, '\nThe following versions are currently supported: {}\n'.format(', '.join(self.versionList)), 'yellow')
             return
         self.minorVer = int(self.currentVer.split('.')[1])
         self.currentVersionInfo.insert(tk.END, 'Current Version of PathPilot is: {}\n'.format(self.currentVer))

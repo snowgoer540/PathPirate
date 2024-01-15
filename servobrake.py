@@ -35,7 +35,8 @@ class ServoBrake:
     def __init__(self):
         # set up the main window
         self.main = tk.Tk()
-        self.main.title("PathPirate Servo Brake Release Tool v1.0")
+        self.main.title("PathPirate Servo Brake Release Tool v1.3")
+        self.versionList = ['v2.9.2', 'v2.9.3', 'v2.9.4', 'v2.9.5', 'v2.9.6', 'v2.10.0', 'v2.10.1']
         win_width = 1000
         win_height = 700
         screen_width = self.main.winfo_screenwidth()
@@ -240,8 +241,9 @@ class ServoBrake:
         with open(self.version_file, 'r') as json_file:
             version_data = json.load(json_file)
         self.current_ver = version_data['version']
-        if not self.current_ver.split('-')[0] in ['v2.9.2', 'v2.9.3', 'v2.9.4', 'v2.9.5', 'v2.9.6', 'v2.10.0']:
+        if not self.current_ver.split('-')[0] in self.versionList:
             self.current_version_info.insert(tk.END, 'ERROR: PathPirate is not compatible with version {}! Unable to proceed!\n'.format(self.current_ver), 'red')
+            self.console.insert(tk.END, '\nThe following versions are currently supported: {}\n'.format(', '.join(self.versionList)), 'yellow')
             return
         self.minorVer = int(self.current_ver.split('.')[1])
         self.current_version_info.insert(tk.END, 'Current Version of PathPilot is: {}\n'.format(self.current_ver))
