@@ -37,7 +37,7 @@ class PathPirate:
     def __init__(self):
         # set up the main window
         self.main = tk.Tk()
-        self.main.title("PathPirate Configurator v1.3 for Tormach's PathPilot")
+        self.main.title("PathPirate Configurator v1.4 for Tormach's PathPilot")
         self.versionList = ['v2.9.2', 'v2.9.3', 'v2.9.4', 'v2.9.5', 'v2.9.6', 'v2.10.0', 'v2.10.1']
         winWidth = 1000
         winHeight = 700
@@ -400,7 +400,7 @@ class PathPirate:
         self.console.see(tk.END)
 
     def addServos(self, event=None):
-        if self.machine in ['1100-3', '770']:
+        if self.machine in ['770', '1100-3']:
             self.addServosMill()
         else:
             self.addServosLathe()
@@ -468,7 +468,9 @@ class PathPirate:
         self.console.insert(tk.END, '{}\n'.format(self.currentMillIni), 'pink')
         self.console.insert(tk.END, '{}\n'.format(self.currentMillHal), 'pink')
         self.console.insert(tk.END, '{}\n'.format(self.currentRapidTurnIni), 'pink')
-        self.console.insert(tk.END, '{}\n\n'.format(self.currentRapidTurnHal), 'pink')
+        self.console.insert(tk.END, '{}\n'.format(self.currentRapidTurnHal), 'pink')
+        self.console.insert(tk.END, '{}\n'.format(self.current7i92MillIni), 'pink')
+        self.console.insert(tk.END, '{}\n\n'.format(self.current7i92RapidTurnIni), 'pink')
         if encoder:
             with open(self.currentMillHal, 'r+') as file:
                 text = file.read()
@@ -532,20 +534,12 @@ class PathPirate:
         halshowPath = os.path.join(self.sourcePath, 'halshow.tcl')
         cbuttonPath = os.path.join(self.sourcePath, 'cbutton.tcl')
         try:
-            for file in [self.uiCommon, self.uiLathe, self.hal1, self.hal2, self.velPath, self.currentMillHal, self.currentMillIni, self.currentRapidTurnIni, self.currentRapidTurnHal, self.currentLatheHal, self.currentLatheIni, self.tooltips, self.plasmaControls, self.latheControls, self.millControls]:
+            for file in [self.uiCommon, self.uiLathe, self.hal1, self.hal2, self.velPath, self.currentMillHal, self.currentMillIni, self.current7i92MillIni, self.currentRapidTurnIni, self.current7i92RapidTurnIni, self.currentRapidTurnHal, self.currentLatheHal, self.currentLatheIni, self.tooltips, self.plasmaControls, self.latheControls, self.millControls]:
                 tempFile = '{}.bak'.format(file)
                 if os.path.exists(tempFile):
                     change = True
                     copy(tempFile, file)
                     os.remove(tempFile)
-            # currently only the 1100-3 is supported (770 would go here too)
-            if self.machine in ['1100-3']:
-                for file in [self.current7i92MillIni, self.current7i92RapidTurnIni]:
-                    tempFile = '{}.bak'.format(file)
-                    if os.path.exists(tempFile):
-                        change = True
-                        copy(tempFile, file)
-                        os.remove(tempFile)
             for firmware in [self.pathPirateMillFirmware, self.pathPirateMill7i92Firmware, self.pathPirateMill7i92tFirmware, self.pathPirateLatheFirmware]:
                 if os.path.exists(firmware):
                     os.remove(firmware)
@@ -607,7 +601,7 @@ class PathPirate:
             return
         # machine options: 1100-3, 770, 15L Slant-PRO
         # currently only the 1100-3 is supported (770 would go here too), 15L Slant-PRO is in development
-        if self.machine in ['1100-3']:
+        if self.machine in ['770', '1100-3']:
             self.current7i92MillIni = os.path.join(self.tmc, 'configs/tormach_mill/tormach_{}_7i92_specific.ini'.format(self.machine))
             self.current7i92RapidTurnIni = os.path.join(self.tmc, \
             'configs/tormach_lathe/tormach_{}_7i92_rapidturn_specific.ini'.format(self.machine))
@@ -616,9 +610,9 @@ class PathPirate:
             self.clearPathMill7i92Ini = os.path.join(self.pathPirateDir, \
             'files/configs/pathpirate_cpm_hsh_{}_7i92_specific.ini'.format(self.machine))
             self.clearPathRapidTurnHal = os.path.join(self.pathPirateDir, \
-            'files/configs/pathpirate_cpm_hsh_rapidturn_{}.hal'.format(self.machine))
+            'files/configs/pathpirate_cpm_hsh_rapidturn.hal'.format(self.machine))
             self.clearPathRapidTurnIni = os.path.join(self.pathPirateDir, \
-            'files/configs/pathpirate_cpm_hsh_rapidturn_{}.ini'.format(self.machine))
+            'files/configs/pathpirate_cpm_hsh_rapidturn.ini'.format(self.machine))
             self.clearPath7i92RapidTurnIni = os.path.join(self.pathPirateDir, \
             'files/configs/pathpirate_cpm_hsh_{}_7i92_rapidturn_specific.ini'.format(self.machine))
             self.machineInfo.insert(tk.END, 'Machine Model is: {}\n'.format(self.machine))
