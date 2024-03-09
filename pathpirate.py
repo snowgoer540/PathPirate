@@ -609,6 +609,7 @@ class PathPirate:
             return
         self.minorVer = int(self.currentVer.split('.')[1])
         self.currentVersionInfo.insert(tk.END, 'Current Version of PathPilot is: {}\n'.format(self.currentVer))
+        self.versionFolder = 'v2.9.x' if self.currentVer.split('-')[0] in ['v2.9.2', 'v2.9.3', 'v2.9.4', 'v2.9.5', 'v2.9.6'] else self.currentVer.split('-')[0]
         machineFile = os.path.join(self.home, 'pathpilot.json')
         if not os.path.exists(machineFile):
             self.machineInfo.insert(tk.END, 'ERROR: {} is missing! Unable to proceed!\n'.format(machineFile), 'red')
@@ -626,28 +627,28 @@ class PathPirate:
             self.current7i92MillIni = os.path.join(self.tmc, 'configs/tormach_mill/tormach_{}_7i92_specific.ini'.format(self.machine))
             self.current7i92RapidTurnIni = os.path.join(self.tmc, \
             'configs/tormach_lathe/tormach_{}_7i92_rapidturn_specific.ini'.format(self.machine))
-            self.clearPathMillHal = os.path.join(self.pathPirateDir, 'files/configs/pathpirate_cpm_hsh_mill.hal')
-            self.clearPathMillIni = os.path.join(self.pathPirateDir, 'files/configs/pathpirate_cpm_hsh_mill.ini')
+            self.clearPathMillHal = os.path.join(self.pathPirateDir, 'files/configs/{}/pathpirate_cpm_hsh_mill.hal'.format(self.versionFolder))
+            self.clearPathMillIni = os.path.join(self.pathPirateDir, 'files/configs/{}/pathpirate_cpm_hsh_mill.ini'.format(self.versionFolder))
             self.clearPathMill7i92Ini = os.path.join(self.pathPirateDir, \
-            'files/configs/pathpirate_cpm_hsh_{}_7i92_specific.ini'.format(self.machine))
+            'files/configs/{}/pathpirate_cpm_hsh_{}_7i92_specific.ini'.format(self.versionFolder, self.machine))
             self.clearPathRapidTurnHal = os.path.join(self.pathPirateDir, \
-            'files/configs/pathpirate_cpm_hsh_rapidturn.hal'.format(self.machine))
+            'files/configs/{}/pathpirate_cpm_hsh_rapidturn.hal'.format(self.versionFolder, self.machine))
             self.clearPathRapidTurnIni = os.path.join(self.pathPirateDir, \
-            'files/configs/pathpirate_cpm_hsh_rapidturn.ini'.format(self.machine))
+            'files/configs/{}/pathpirate_cpm_hsh_rapidturn.ini'.format(self.versionFolder, self.machine))
             self.clearPath7i92RapidTurnIni = os.path.join(self.pathPirateDir, \
-            'files/configs/pathpirate_cpm_hsh_{}_7i92_rapidturn_specific.ini'.format(self.machine))
+            'files/configs/{}/pathpirate_cpm_hsh_{}_7i92_rapidturn_specific.ini'.format(self.versionFolder, self.machine))
             if self.machine == '770':
                 self.current770SpecificIni = os.path.join(self.tmc, 'configs/tormach_mill/tormach_{}_specific.ini'.format(self.machine))
                 self.current770SpecificRapidTurnIni = os.path.join(self.tmc, \
                 'configs/tormach_lathe/tormach_{}_rapidturn_specific.ini'.format(self.machine))
                 self.clearPath770SpecificIni = os.path.join(self.pathPirateDir, \
-                'files/configs/pathpirate_cpm_hsh_{}_specific.ini'.format(self.machine))
+                'files/configs/{}/pathpirate_cpm_hsh_{}_specific.ini'.format(self.versionFolder, self.machine))
                 self.clearPath770RapidTurnSpecificIni = os.path.join(self.pathPirateDir, \
-                'files/configs/pathpirate_cpm_hsh_{}_rapidturn_specific.ini'.format(self.machine))
+                'files/configs/{}/pathpirate_cpm_hsh_{}_rapidturn_specific.ini'.format(self.versionFolder, self.machine))
             self.machineInfo.insert(tk.END, 'Machine Model is: {}\n'.format(self.machine))
         elif self.machine == '15L Slant-PRO':
-            self.clearPathLatheHal = os.path.join(self.pathPirateDir, 'files/configs/pathpirate_cpm_hsh_lathe.hal')
-            self.clearPathLatheIni = os.path.join(self.pathPirateDir, 'files/configs/pathpirate_cpm_hsh_lathe.ini')
+            self.clearPathLatheHal = os.path.join(self.pathPirateDir, 'files/configs/{}/pathpirate_cpm_hsh_lathe.hal'.format(self.versionFolder))
+            self.clearPathLatheIni = os.path.join(self.pathPirateDir, 'files/configs/{}/pathpirate_cpm_hsh_lathe.ini'.format(self.versionFolder))
             self.addEncoderButton.pack_forget()
             self.machineInfo.insert(tk.END, 'Machine Model is: {}. ADD ENCODER button has been hidden.\n'.format(self.machine))
         else:

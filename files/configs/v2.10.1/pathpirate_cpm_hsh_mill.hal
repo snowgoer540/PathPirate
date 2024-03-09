@@ -6,6 +6,7 @@
 # hm2_pci/hm2_eth driver and related parameters
 #
 # This config was modified by PathPirate to add ClearPath servos
+# PathPilot v2.10.1
 
 loadrt trivkins
 loadusr -W hwmon $INI_FILE_NAME

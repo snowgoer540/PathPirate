@@ -35,7 +35,7 @@ class ServoBrake:
     def __init__(self):
         # set up the main window
         self.main = tk.Tk()
-        self.main.title("PathPirate Servo Brake Release Tool v1.3")
+        self.main.title('PathPirate Servo Brake Release Tool v1.4')
         self.versionList = ['v2.9.2', 'v2.9.3', 'v2.9.4', 'v2.9.5', 'v2.9.6', 'v2.10.0', 'v2.10.1']
         win_width = 1000
         win_height = 700
@@ -256,8 +256,8 @@ class ServoBrake:
         except:
             self.machine_info.insert(tk.END, 'ERROR: Missing data in: {}! Unable to proceed!\n'.format(self.machine_file), 'red')
             return
-        if self.machine in ['1100-3', '15L Slant-PRO']:
-            if self.machine == '1100-3':
+        if self.machine in ['770', '1100-3', '15L Slant-PRO']:
+            if self.machine in ['770', '1100-3']:
                 hal_file = self.mill_hal
             else:
                 hal_file = self.lathe_hal
