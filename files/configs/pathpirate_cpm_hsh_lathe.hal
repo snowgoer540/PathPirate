@@ -331,6 +331,10 @@ setp hm2_[HOSTMOT2](BOARD).0.gpio.001.is_output 1
 setp hm2_[HOSTMOT2](BOARD).0.gpio.001.is_opendrain 0
 net coolant-flood hm2_[HOSTMOT2](BOARD).0.gpio.001.out
 
+# Common coolant pins / signals (pass through GUI hal pins in postgui config)
+net coolant-flood-io iocontrol.0.coolant-flood
+net coolant-mist-io  iocontrol.0.coolant-mist
+
 ########################################################################
 # Spindle Encoder
 setp hm2_[HOSTMOT2](BOARD).0.encoder.04.counter-mode 0
@@ -581,6 +585,9 @@ setp hm2_[HOSTMOT2](BOARD).0.stepgen.00.dirhold [AXIS_0]DIRHOLD
 setp hm2_[HOSTMOT2](BOARD).0.stepgen.00.dirsetup [AXIS_0]DIRSETUP
 
 setp hm2_[HOSTMOT2](BOARD).0.stepgen.00.maxvel [AXIS_0]STEPGEN_MAX_VEL
+# create alias to be able to change the stepgen maxvel by axis name
+alias param hm2_[HOSTMOT2](BOARD).0.stepgen.00.maxvel  x_axis_stepgen_maxvel
+
 setp hm2_[HOSTMOT2](BOARD).0.stepgen.00.maxaccel [AXIS_0]STEPGEN_MAXACCEL
 
 # X axis CPM enable chain
@@ -643,6 +650,9 @@ setp hm2_[HOSTMOT2](BOARD).0.stepgen.01.dirhold [AXIS_2]DIRHOLD
 setp hm2_[HOSTMOT2](BOARD).0.stepgen.01.dirsetup [AXIS_2]DIRSETUP
 
 setp hm2_[HOSTMOT2](BOARD).0.stepgen.01.maxvel [AXIS_2]STEPGEN_MAX_VEL
+# create alias to be able to change the stepgen maxvel by axis name
+alias param hm2_[HOSTMOT2](BOARD).0.stepgen.01.maxvel  z_axis_stepgen_maxvel
+
 setp hm2_[HOSTMOT2](BOARD).0.stepgen.01.maxaccel [AXIS_2]STEPGEN_MAXACCEL
 
 # Z axis CPM enable chain
@@ -687,6 +697,14 @@ setp tormachcolletcontrol.0.interp-request 0
 setp tormachcolletcontrol.0.manual-collet-output 0
 setp tormachcolletcontrol.0.manual-request 0
 
+# Create signal names to link to UI pins / digital outputs
+net collet-closer-manual-request tormachcolletcontrol.0.manual-request
+net collet-closer-manual-output tormachcolletcontrol.0.manual-collet-output
+net collet-closer-interp-request tormachcolletcontrol.0.interp-request motion.digital-out-62
+net collet-closer-interp-output tormachcolletcontrol.0.interp-collet-output motion.digital-out-63
+
+# connect the status signal to digital input 21 so it can be read
+# by M3 and M4 remap using M66 which is a queue buster.
 net colletoutputsig tormachcolletcontrol.0.collet-output hm2_[HOSTMOT2](BOARD).0.gpio.012.out
 
 #####################################################################
