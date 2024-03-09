@@ -410,7 +410,13 @@ class PathPirate:
         self.console.insert(tk.END, '\n-----------------------\nADDING CLEARPATH SERVOS\n-----------------------\n', 'yellow')
         missing = False
         encoder = False
-        for file in [self.currentMillHal, self.currentMillIni, self.currentRapidTurnHal, self.currentRapidTurnIni, self.clearPathMillHal, self.clearPathMillIni, self.current7i92MillIni, self.current7i92RapidTurnIni, self.clearPathRapidTurnHal, self.clearPathRapidTurnIni, self.clearPathMill7i92Ini, self.clearPath7i92RapidTurnIni, self.newMill7i92Bit, self.newMill7i92tBin, self.newMillBit, self.uiLathe]:
+        checkFilesList = [self.currentMillHal, self.currentMillIni, self.currentRapidTurnHal, self.currentRapidTurnIni, self.clearPathMillHal, self.clearPathMillIni, self.current7i92MillIni, self.current7i92RapidTurnIni, self.clearPathRapidTurnHal, self.clearPathRapidTurnIni, self.clearPathMill7i92Ini, self.clearPath7i92RapidTurnIni, self.newMill7i92Bit, self.newMill7i92tBin, self.newMillBit, self.uiLathe]
+        if self.machine == '770':
+            checkFilesList.append(self.current770SpecificIni)
+            checkFilesList.append(self.current770SpecificRapidTurnIni)
+            checkFilesList.append(self.clearPath770SpecificIni)
+            checkFilesList.append(self.clearPath770RapidTurnSpecificIni)
+        for file in checkFilesList:
             if not os.path.exists(file):
                 self.console.insert(tk.END, 'The following required file is missing: ', 'red')
                 self.console.insert(tk.END, '{}\n'.format(file), 'pink')
@@ -419,7 +425,11 @@ class PathPirate:
             self.console.insert(tk.END, '\nAborting...\n', 'red')
             self.console.see(tk.END)
             return
-        for file in [self.currentMillIni, self.current7i92MillIni, self.currentMillHal, self.currentRapidTurnIni, self.current7i92RapidTurnIni, self.currentRapidTurnHal]:
+        currentFilesList = [self.currentMillIni, self.current7i92MillIni, self.currentMillHal, self.currentRapidTurnIni, self.current7i92RapidTurnIni, self.currentRapidTurnHal]
+        if self.machine == '770':
+            currentFilesList.append(self.current770SpecificIni)
+            currentFilesList.append(self.current770SpecificRapidTurnIni)
+        for file in currentFilesList:
             tempFile = '{}.bak'.format(file)
             if not os.path.exists(tempFile):
                 copy(file, tempFile)
@@ -431,6 +441,9 @@ class PathPirate:
         copy(self.clearPathRapidTurnIni, self.currentRapidTurnIni)
         copy(self.clearPathMill7i92Ini, self.current7i92MillIni)
         copy(self.clearPath7i92RapidTurnIni, self.current7i92RapidTurnIni)
+        if self.machine == '770':
+            copy(self.clearPath770SpecificIni, self.current770SpecificIni)
+            copy(self.clearPath770RapidTurnSpecificIni, self.current770SpecificRapidTurnIni)
         with open(self.currentMillIni, 'r+') as file:
             text = file.read()
             if encoder:
@@ -467,9 +480,12 @@ class PathPirate:
         self.console.insert(tk.END, 'The following files have been successfully modified:\n')
         self.console.insert(tk.END, '{}\n'.format(self.currentMillIni), 'pink')
         self.console.insert(tk.END, '{}\n'.format(self.currentMillHal), 'pink')
+        self.console.insert(tk.END, '{}\n'.format(self.current7i92MillIni), 'pink')
+        if self.machine == '770':
+            self.console.insert(tk.END, '{}\n'.format(self.current770SpecificIni), 'pink')
+            self.console.insert(tk.END, '{}\n'.format(self.current770SpecificRapidTurnIni), 'pink')
         self.console.insert(tk.END, '{}\n'.format(self.currentRapidTurnIni), 'pink')
         self.console.insert(tk.END, '{}\n'.format(self.currentRapidTurnHal), 'pink')
-        self.console.insert(tk.END, '{}\n'.format(self.current7i92MillIni), 'pink')
         self.console.insert(tk.END, '{}\n\n'.format(self.current7i92RapidTurnIni), 'pink')
         if encoder:
             with open(self.currentMillHal, 'r+') as file:
@@ -534,7 +550,11 @@ class PathPirate:
         halshowPath = os.path.join(self.sourcePath, 'halshow.tcl')
         cbuttonPath = os.path.join(self.sourcePath, 'cbutton.tcl')
         try:
-            for file in [self.uiCommon, self.uiLathe, self.hal1, self.hal2, self.velPath, self.currentMillHal, self.currentMillIni, self.current7i92MillIni, self.currentRapidTurnIni, self.current7i92RapidTurnIni, self.currentRapidTurnHal, self.currentLatheHal, self.currentLatheIni, self.tooltips, self.plasmaControls, self.latheControls, self.millControls]:
+            changedFilesList = [self.uiCommon, self.uiLathe, self.hal1, self.hal2, self.velPath, self.currentMillHal, self.currentMillIni, self.current7i92MillIni, self.currentRapidTurnIni, self.current7i92RapidTurnIni, self.currentRapidTurnHal, self.currentLatheHal, self.currentLatheIni, self.tooltips, self.plasmaControls, self.latheControls, self.millControls]
+            if self.machine == '770':
+                changedFilesList.append(self.current770SpecificIni)
+                changedFilesList.append(self.current770SpecificRapidTurnIni)
+            for file in changedFilesList:
                 tempFile = '{}.bak'.format(file)
                 if os.path.exists(tempFile):
                     change = True
@@ -600,7 +620,7 @@ class PathPirate:
             self.machineInfo.insert(tk.END, 'ERROR: Unable to extract machine model from: {}! Unable to proceed!\n'.format(machineFile), 'red')
             return
         # machine options: 1100-3, 770, 15L Slant-PRO
-        # currently only the 1100-3 is supported (770 would go here too), 15L Slant-PRO is in development
+        # currently the 1100-3 and 7700 are supported, 15L Slant-PRO is in development
         if self.machine in ['770', '1100-3']:
             self.current7i92MillIni = os.path.join(self.tmc, 'configs/tormach_mill/tormach_{}_7i92_specific.ini'.format(self.machine))
             self.current7i92RapidTurnIni = os.path.join(self.tmc, \
@@ -615,6 +635,14 @@ class PathPirate:
             'files/configs/pathpirate_cpm_hsh_rapidturn.ini'.format(self.machine))
             self.clearPath7i92RapidTurnIni = os.path.join(self.pathPirateDir, \
             'files/configs/pathpirate_cpm_hsh_{}_7i92_rapidturn_specific.ini'.format(self.machine))
+            if self.machine == '770':
+                self.current770SpecificIni = os.path.join(self.tmc, 'configs/tormach_mill/tormach_{}_specific.ini'.format(self.machine))
+                self.current770SpecificRapidTurnIni = os.path.join(self.tmc, \
+                'configs/tormach_lathe/tormach_{}_rapidturn_specific.ini'.format(self.machine))
+                self.clearPath770SpecificIni = os.path.join(self.pathPirateDir, \
+                'files/configs/pathpirate_cpm_hsh_{}_specific.ini'.format(self.machine))
+                self.clearPath770RapidTurnSpecificIni = os.path.join(self.pathPirateDir, \
+                'files/configs/pathpirate_cpm_hsh_{}_rapidturn_specific.ini'.format(self.machine))
             self.machineInfo.insert(tk.END, 'Machine Model is: {}\n'.format(self.machine))
         elif self.machine == '15L Slant-PRO':
             self.clearPathLatheHal = os.path.join(self.pathPirateDir, 'files/configs/pathpirate_cpm_hsh_lathe.hal')
