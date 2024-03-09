@@ -480,12 +480,13 @@ class PathPirate:
         self.console.insert(tk.END, 'The following files have been successfully modified:\n')
         self.console.insert(tk.END, '{}\n'.format(self.currentMillIni), 'pink')
         self.console.insert(tk.END, '{}\n'.format(self.currentMillHal), 'pink')
-        self.console.insert(tk.END, '{}\n'.format(self.current7i92MillIni), 'pink')
         if self.machine == '770':
             self.console.insert(tk.END, '{}\n'.format(self.current770SpecificIni), 'pink')
-            self.console.insert(tk.END, '{}\n'.format(self.current770SpecificRapidTurnIni), 'pink')
+        self.console.insert(tk.END, '{}\n'.format(self.current7i92MillIni), 'pink')
         self.console.insert(tk.END, '{}\n'.format(self.currentRapidTurnIni), 'pink')
         self.console.insert(tk.END, '{}\n'.format(self.currentRapidTurnHal), 'pink')
+        if self.machine == '770':
+            self.console.insert(tk.END, '{}\n'.format(self.current770SpecificRapidTurnIni), 'pink')
         self.console.insert(tk.END, '{}\n\n'.format(self.current7i92RapidTurnIni), 'pink')
         if encoder:
             with open(self.currentMillHal, 'r+') as file:
