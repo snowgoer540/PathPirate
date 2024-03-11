@@ -603,13 +603,13 @@ class PathPirate:
         with open(versionFile, 'r') as jsonFile:
             versionData = json.load(jsonFile)
         self.currentVer = versionData['version']
-        if not self.currentVer.split('-')[0] in self.versionList:
+        if not self.currentVer in self.versionList:
             self.currentVersionInfo.insert(tk.END, 'ERROR: PathPirate is not compatible with version {}! Unable to proceed!\n'.format(self.currentVer), 'red')
             self.console.insert(tk.END, '\nThe following versions are currently supported: {}\n'.format(', '.join(self.versionList)), 'yellow')
             return
         self.minorVer = int(self.currentVer.split('.')[1])
         self.currentVersionInfo.insert(tk.END, 'Current Version of PathPilot is: {}\n'.format(self.currentVer))
-        self.versionFolder = 'v2.9.x' if self.currentVer.split('-')[0] in ['v2.9.2', 'v2.9.3', 'v2.9.4', 'v2.9.5', 'v2.9.6'] else self.currentVer.split('-')[0]
+        self.versionFolder = 'v2.9.x' if self.currentVer in ['v2.9.2', 'v2.9.3', 'v2.9.4', 'v2.9.5', 'v2.9.6'] else self.currentVer
         machineFile = os.path.join(self.home, 'pathpilot.json')
         if not os.path.exists(machineFile):
             self.machineInfo.insert(tk.END, 'ERROR: {} is missing! Unable to proceed!\n'.format(machineFile), 'red')
