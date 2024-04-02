@@ -638,19 +638,6 @@ net enc-door-lock-drive fake-door-lock.in1
 net enc-door-locked-status fake-door-lock.out
 
 
-########################################################################
-# enclosure door switch
-# debounce the door open sensor input
-
-net raw-enc-door-open-status     hm2_[HOSTMOT2](BOARD).0.gpio.013.in   debounce.0.4.in
-
-# gate input through AND with UI postgui pin 'enc-door-switch-enabled'
-# UI can control if the door switch is enabled
-net enc-door-switch-enabled     tormachspindle.enc-door-switch-configured       door-limit-in.in0
-net enc-door-debounced          debounce.0.4.out                                door-limit-in.in1
-
-
-
 # home switch for A axis is also the probe input
 # net home-limit-a hm2_[HOSTMOT2](BOARD).0.gpio.016.in axis.3.home-sw-in
 # TODO: does A axis need connection to axis.3.pos-lim-sw-in and axis.3.pos-lim-sw-in?

@@ -2,7 +2,7 @@
 pathpirate is a script that provides automated configuration changes to
 Tormach's PathPilot.
 
-Copyright (C) 2023  Gregory D Carl
+Copyright (C) 2023, 2024 Gregory D Carl
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -37,7 +37,7 @@ class PathPirate:
     def __init__(self):
         # set up the main window
         self.main = tk.Tk()
-        self.main.title("PathPirate Configurator v1.4 for Tormach's PathPilot")
+        self.main.title("PathPirate Configurator v1.5 for Tormach's PathPilot")
         self.versionList = ['v2.9.2', 'v2.9.3', 'v2.9.4', 'v2.9.5', 'v2.9.6', 'v2.10.0', 'v2.10.1']
         winWidth = 1000
         winHeight = 700
@@ -120,19 +120,27 @@ class PathPirate:
         self.scriptFile = os.path.join(self.tmc, 'bin/halshow')
         self.currentMillIni = os.path.join(self.tmc, 'configs/tormach_mill/tormach_mill_base.ini')
         self.currentMillHal = os.path.join(self.tmc, 'configs/tormach_mill/tormach_mill_mesa.hal')
+        self.encoderHal = os.path.join(self.tmc, 'configs/tormach_mill/series3_encoder.hal')
         self.currentLatheIni = os.path.join(self.tmc, 'configs/tormach_lathe/tormach_lathe_base.ini')
         self.currentLatheHal = os.path.join(self.tmc, 'configs/tormach_lathe/tormach_lathe_mesa.hal')
-        self.currentRapidTurnIni = os.path.join(self.tmc, 'configs/tormach_lathe/tormach_rapidturn_base.ini')
         self.currentRapidTurnHal = os.path.join(self.tmc, 'configs/tormach_lathe/tormach_mill_mesa_rapidturn.hal')
-        self.hal1 = os.path.join(self.tmc, 'configs/common/operator_console_controls_3axis.hal')
-        self.hal2 = os.path.join(self.tmc, 'configs/common/operator_console_controls_4axis.hal')
+        self.consoleHal1 = os.path.join(self.tmc, 'configs/common/operator_console_controls_3axis.hal')
+        self.consoleHal2 = os.path.join(self.tmc, 'configs/common/operator_console_controls_4axis.hal')
+        self.cm770_1 = os.path.join(self.tmc, 'configs/tormach_mill/tormach_770_specific.ini')
+        self.cm770_2 = os.path.join(self.tmc, 'configs/tormach_mill/tormach_770_7i92_specific.ini')
+        self.cm770_3 = os.path.join(self.tmc, 'configs/tormach_lathe/tormach_770_rapidturn_specific.ini')
+        self.cm770_4 = os.path.join(self.tmc, 'configs/tormach_lathe/tormach_770_7i92_rapidturn_specific.ini')
+        self.cm1100_1 = os.path.join(self.tmc, 'configs/tormach_mill/tormach_1100-3_specific.ini')
+        self.cm1100_2 = os.path.join(self.tmc, 'configs/tormach_mill/tormach_1100-3_7i92_specific.ini')
+        self.cm1100_3 = os.path.join(self.tmc, 'configs/tormach_lathe/tormach_1100-3_rapidturn_specific.ini')
+        self.cm1100_4 = os.path.join(self.tmc, 'configs/tormach_lathe/tormach_1100-3_7i92_rapidturn_specific.ini')
         self.plasmaControls = os.path.join(self.tmc, 'python/images/primary_plasma_controls.glade')
         self.latheControls = os.path.join(self.tmc, 'python/images/primary_lathe_controls.glade')
         self.millControls = os.path.join(self.tmc, 'python/images/primary_mill_controls.glade')
         self.uiCommon = os.path.join(self.tmc, 'python/ui_common.py')
         self.uiLathe = os.path.join(self.tmc, 'python/tormach_lathe_ui.py')
         self.tooltips = os.path.join(self.tmc, 'python/res/tooltips.json')
-        self.velPath = os.path.join(self.tmc, 'python/images/MAXVEL_100.jpg')
+        self.velImage = os.path.join(self.tmc, 'python/images/MAXVEL_100.jpg')
         self.mesaFlash = os.path.join(self.tmc, 'bin/mesaflash')
         self.mesaPath = os.path.join(self.tmc, 'mesa')
         self.pathPirateMillFirmware = os.path.join(self.mesaPath, '5i25_t2_7i85s_dpll.bit')
@@ -146,9 +154,21 @@ class PathPirate:
         self.newMill7i92Bit = os.path.join(self.pathPirateDir, 'files/firmware/mill/7i92_7i85s.bit')
         self.newMill7i92tBin =os.path.join(self.pathPirateDir, 'files/firmware/mill/7i92t_7i85s.bin')
         self.newLatheBin = os.path.join(self.pathPirateDir, 'files/firmware/lathe/5i25_t2_7i85s_dpll_lathe.bit')
-        self.rapidPath = os.path.join(self.pathPirateDir, 'files/rapid_slider/RAPID_100.jpg')
+        self.rapidImage = os.path.join(self.pathPirateDir, 'files/rapid_slider/RAPID_100.jpg')
         self.halshowPath = os.path.join(self.pathPirateDir, 'files/halshow/halshow.tcl')
         self.cbuttonPath = os.path.join(self.pathPirateDir, 'files/halshow/cbutton.tcl')
+        self.cp770_1 = os.path.join(self.pathPirateDir, 'files/configs/pathpirate_cpm_hsh_770_specific.ini')
+        self.cp770_2 = os.path.join(self.pathPirateDir, 'files/configs/pathpirate_cpm_hsh_770_7i92_specific.ini')
+        self.cp770_3 = os.path.join(self.pathPirateDir, 'files/configs/pathpirate_cpm_hsh_770_rapidturn_specific.ini')
+        self.cp770_4 = os.path.join(self.pathPirateDir, 'files/configs/pathpirate_cpm_hsh_770_7i92_rapidturn_specific.ini')
+        self.cp770Encoder_1 = os.path.join(self.pathPirateDir, 'files/configs/pathpirate_encoder_770_specific.ini')
+        self.cp770Encoder_2 = os.path.join(self.pathPirateDir, 'files/configs/pathpirate_encoder_770_7i92_specific.ini')
+        self.cp1100_1 = os.path.join(self.pathPirateDir, 'files/configs/pathpirate_cpm_hsh_1100-3_specific.ini')
+        self.cp1100_2 = os.path.join(self.pathPirateDir, 'files/configs/pathpirate_cpm_hsh_1100-3_7i92_specific.ini')
+        self.cp1100_3 = os.path.join(self.pathPirateDir, 'files/configs/pathpirate_cpm_hsh_1100-3_rapidturn_specific.ini')
+        self.cp1100_4 = os.path.join(self.pathPirateDir, 'files/configs/pathpirate_cpm_hsh_1100-3_7i92_rapidturn_specific.ini')
+        self.cp1100Encoder_1 = os.path.join(self.pathPirateDir, 'files/configs/pathpirate_encoder_1100-3_specific.ini')
+        self.cp1100Encoder_2 = os.path.join(self.pathPirateDir, 'files/configs/pathpirate_encoder_1100-3_7i92_specific.ini')
 
         # get current version and machine info
         self.getVersion()
@@ -201,9 +221,9 @@ class PathPirate:
         missing = False
         change = False
         if self.minorVer == 9:
-            list = [self.uiCommon, self.hal1, self.hal2, self.tooltips, self.velPath, self.rapidPath]
+            list = [self.uiCommon, self.consoleHal1, self.consoleHal2, self.tooltips, self.velImage, self.rapidImage]
         elif self.minorVer == 10:
-            list = [self.uiCommon, self.hal1, self.hal2, self.tooltips, self.plasmaControls, self.latheControls, self.millControls]
+            list = [self.uiCommon, self.consoleHal1, self.consoleHal2, self.tooltips, self.plasmaControls, self.latheControls, self.millControls]
         for file in list:
             if not os.path.exists(file):
                 self.console.insert(tk.END, 'The following required file is missing: ', 'red')
@@ -213,7 +233,7 @@ class PathPirate:
             self.console.insert(tk.END, '\nAborting...\n', 'red')
             self.console.see(tk.END)
             return
-        for modFile in [self.uiCommon, self.hal1, self.hal2, self.tooltips]:
+        for modFile in [self.uiCommon, self.consoleHal1, self.consoleHal2, self.tooltips]:
             tempFile = '{}.bak'.format(modFile)
             if not os.path.exists(tempFile):
                 copy(modFile, tempFile)
@@ -249,19 +269,19 @@ class PathPirate:
                 self.console.insert(tk.END, '{}\n'.format(modFile), 'pink')
                 change = True
         if self.minorVer == 9:
-            with open (self.velPath, 'rb') as originalImage:
+            with open (self.velImage, 'rb') as originalImage:
                 original = originalImage.read()
-            with open (self.rapidPath, 'rb') as modImage:
+            with open (self.rapidImage, 'rb') as modImage:
                 modified = modImage.read()
             if original == modified:
                 self.console.insert(tk.END, 'Image file was previously replaced\n\n')
             else:
-                tempFile = '{}.bak'.format(self.velPath)
+                tempFile = '{}.bak'.format(self.velImage)
                 if not os.path.exists(tempFile):
-                    copy(self.velPath, tempFile)
-                copy(self.rapidPath, self.velPath)
+                    copy(self.velImage, tempFile)
+                copy(self.rapidImage, self.velImage)
                 self.console.insert(tk.END, 'Image file copied to: ')
-                self.console.insert(tk.END, '{}\n'.format(self.velPath), 'pink')
+                self.console.insert(tk.END, '{}\n'.format(self.velImage), 'pink')
                 change = True
         elif self.minorVer == 10:
             for modFile in [self.plasmaControls, self.latheControls, self.millControls]:
@@ -325,7 +345,8 @@ class PathPirate:
             self.console.insert(tk.END, 'Encoder scale is required\n', 'red')
             self.console.see(tk.END)
             return
-        for file in [self.currentMillHal, self.currentMillIni, self.clearPathMill7i92Ini, self.current7i92MillIni, self.newMill7i92Bit, self.newMill7i92tBin, self.newMillBit]:
+        checkFiles = [self.currentMillIni, self.cm770_1, self.cm770_2, self.cm1100_1, self.cm1100_2, self.newMill7i92Bit, self.newMill7i92tBin, self.newMillBit]
+        for file in checkFiles:
             if not os.path.exists(file):
                 self.console.insert(tk.END, 'The following required file is missing: ', 'red')
                 self.console.insert(tk.END, '{}\n'.format(file), 'pink')
@@ -334,61 +355,59 @@ class PathPirate:
             self.console.insert(tk.END, '\nAborting...\n', 'red')
             self.console.see(tk.END)
             return
-        with open(self.currentMillHal, 'r+') as file:
-            text = file.read()
-            if '# The following encoder lines were added by PathPirate' in text:
-                if 'setp hm2_5i25.0.encoder.03.scale {}'.format(scale) in text:
-                    self.console.insert(tk.END, 'The necessary modifications are already present in the following file: ')
-                    self.console.insert(tk.END, '{}\n'.format(self.currentMillHal), 'pink')
-                else:
-                    for line in text.splitlines():
-                        if 'setp hm2_5i25.0.encoder.03.scale' in line:
-                            text = text.replace(line, 'setp hm2_5i25.0.encoder.03.scale {}'.format(scale))
-                            file.seek(0)
-                            file.truncate()
-                            file.write(text)
-                            change = True
-                            self.console.insert(tk.END, 'The following file has been modified to change the encoder scale: '.format(self.currentMillHal))
-                            self.console.insert(tk.END, '{}\n'.format(self.currentMillHal), 'pink')
-            else:
-                tempFile = '{}.bak'.format(self.currentMillHal)
-                if not os.path.exists(tempFile):
-                    copy(self.currentMillHal, tempFile)
-                text += ('\n#####################################################################\n')
-                text += ('# The following encoder lines were added by PathPirate\n\n')
-                text += ('unlinkp motion.spindle-speed-in\n')
-                text += ('net spindle-position hm2_5i25.0.encoder.03.position => motion.spindle-revs\n')
-                text += ('net spindle-velocity hm2_5i25.0.encoder.03.velocity => motion.spindle-speed-in\n')
-                text += ('net spindle-index-enable hm2_5i25.0.encoder.03.index-enable <=> motion.spindle-index-enable\n')
-                text += ('setp hm2_5i25.0.encoder.03.scale {}'.format(scale))
-                file.seek(0)
-                file.truncate()
-                file.write(text)
-                change = True
-                self.console.insert(tk.END, 'The following file has been successfully modified: ')
-                self.console.insert(tk.END, '{}\n'.format(self.currentMillHal), 'pink')
-        for file in [self.currentMillIni, self.current7i92MillIni]:
+        backupFiles = [self.currentMillIni, self.cm770_1, self.cm770_2, self.cm1100_1, self.cm1100_2]
+        for file in backupFiles:
             tempFile = '{}.bak'.format(file)
             if not os.path.exists(tempFile):
                 copy(file, tempFile)
-        copy(self.clearPathMill7i92Ini, self.current7i92MillIni)
         with open(self.currentMillIni, 'r+') as file:
             text = file.read()
-            if not '# Encoder added by PathPirate' in text:
-                text = text.replace('DRIVER_PARAMS="config= num_encoders=2 num_pwmgens=1 num_3pwmgens=0 num_stepgens=5 "', \
-                'DRIVER_PARAMS="config= num_encoders=4 num_pwmgens=1 num_3pwmgens=0 num_stepgens=5 "')
-                text = text.replace('BITFILE0=mesa/tormach_mill3.bit', \
-                'BITFILE0=mesa/5i25_t2_7i85s_dpll.bit')
-                text += ('# Encoder added by PathPirate')
-                file.seek(0)
-                file.truncate()
-                file.write(text)
-                change = True
-                self.console.insert(tk.END, 'The following file has been successfully modified: ')
-                self.console.insert(tk.END, '{}\n'.format(self.currentMillIni), 'pink')
-            else:
+            if 'HALFILE = series3_encoder.hal' in text:
                 self.console.insert(tk.END, 'The necessary modifications are already present in the following file: ')
                 self.console.insert(tk.END, '{}\n'.format(self.currentMillIni), 'pink')
+            else:
+                for line in text.splitlines():
+                    if 'HALFILE = tormach_mill_mesa.hal' in line:
+                        text = text.replace(line, 'HALFILE = tormach_mill_mesa.hal\nHALFILE = series3_encoder.hal')
+                        file.seek(0)
+                        file.truncate()
+                        file.write(text)
+                        change = True
+                        self.console.insert(tk.END, 'The following file has been successfully modified: ')
+                        self.console.insert(tk.END, '{}\n'.format(self.currentMillIni), 'pink')
+        with open(self.encoderHal,'w') as file:
+            text = ('#####################################################################\n')
+            text += ('# The following encoder lines were added by PathPirate\n\n')
+            text += ('unlinkp motion.spindle-speed-in\n')
+            text += ('net spindle-position hm2_5i25.0.encoder.03.position => motion.spindle-revs\n')
+            text += ('net spindle-velocity hm2_5i25.0.encoder.03.velocity => motion.spindle-speed-in\n')
+            text += ('net spindle-index-enable hm2_5i25.0.encoder.03.index-enable <=> motion.spindle-index-enable\n')
+            text += ('setp hm2_5i25.0.encoder.03.scale {}'.format(scale))
+            file.seek(0)
+            file.truncate()
+            file.write(text)
+            change = True
+            self.console.insert(tk.END, 'The following file has been successfully modified: ')
+            self.console.insert(tk.END, '{}\n'.format(self.currentMillHal), 'pink')
+        with open(self.cm1100_1, 'r+') as file:
+            text = file.read()
+            if not 'PathPirate' in text:
+                copy(self.cp770Encoder_1, self.cm770_1)
+                copy(self.cp770Encoder_2, self.cm770_2)
+                copy(self.cp1100Encoder_1, self.cm1100_1)
+                copy(self.cp1100Encoder_2, self.cm1100_2)
+                change = True
+                self.console.insert(tk.END, 'The following files has been successfully modified:\n')
+                self.console.insert(tk.END, '{}\n'.format(self.cm770_1), 'pink')
+                self.console.insert(tk.END, '{}\n'.format(self.cm770_2), 'pink')
+                self.console.insert(tk.END, '{}\n'.format(self.cm1100_1), 'pink')
+                self.console.insert(tk.END, '{}\n'.format(self.cm1100_2), 'pink')
+            else:
+                self.console.insert(tk.END, 'The necessary modifications are already present in the following files:\n')
+                self.console.insert(tk.END, '{}\n'.format(self.cm770_1), 'pink')
+                self.console.insert(tk.END, '{}\n'.format(self.cm770_2), 'pink')
+                self.console.insert(tk.END, '{}\n'.format(self.cm1100_1), 'pink')
+                self.console.insert(tk.END, '{}\n'.format(self.cm1100_2), 'pink')
         for file in [self.newMillBit, self.newMill7i92Bit, self.newMill7i92tBin]:
             copy(file, self.mesaPath)
         self.console.insert(tk.END, '\nThe necessary firmwares have been copied to:\n')
@@ -409,14 +428,8 @@ class PathPirate:
     def addServosMill(self, event=None):
         self.console.insert(tk.END, '\n-----------------------\nADDING CLEARPATH SERVOS\n-----------------------\n', 'yellow')
         missing = False
-        encoder = False
-        checkFilesList = [self.currentMillHal, self.currentMillIni, self.currentRapidTurnHal, self.currentRapidTurnIni, self.clearPathMillHal, self.clearPathMillIni, self.current7i92MillIni, self.current7i92RapidTurnIni, self.clearPathRapidTurnHal, self.clearPathRapidTurnIni, self.clearPathMill7i92Ini, self.clearPath7i92RapidTurnIni, self.newMill7i92Bit, self.newMill7i92tBin, self.newMillBit, self.uiLathe]
-        if self.machine == '770':
-            checkFilesList.append(self.current770SpecificIni)
-            checkFilesList.append(self.current770SpecificRapidTurnIni)
-            checkFilesList.append(self.clearPath770SpecificIni)
-            checkFilesList.append(self.clearPath770RapidTurnSpecificIni)
-        for file in checkFilesList:
+        checkFiles = [self.currentMillHal, self.currentRapidTurnHal, self.clearPathMillHal, self.clearPathRapidTurnHal, self.newMill7i92Bit, self.newMill7i92tBin, self.newMillBit, self.uiLathe, self.cp1100_1, self.cp1100_2, self.cp1100_3, self.cp1100_4, self.cm1100_1, self.cm1100_2, self.cm1100_3, self.cm1100_4, self.cp770_1, self.cp770_2, self.cp770_3, self.cp770_4, self.cm770_1, self.cm770_2, self.cm770_3, self.cm770_4]
+        for file in checkFiles:
             if not os.path.exists(file):
                 self.console.insert(tk.END, 'The following required file is missing: ', 'red')
                 self.console.insert(tk.END, '{}\n'.format(file), 'pink')
@@ -425,40 +438,25 @@ class PathPirate:
             self.console.insert(tk.END, '\nAborting...\n', 'red')
             self.console.see(tk.END)
             return
-        currentFilesList = [self.currentMillIni, self.current7i92MillIni, self.currentMillHal, self.currentRapidTurnIni, self.current7i92RapidTurnIni, self.currentRapidTurnHal]
-        if self.machine == '770':
-            currentFilesList.append(self.current770SpecificIni)
-            currentFilesList.append(self.current770SpecificRapidTurnIni)
-        for file in currentFilesList:
+        backupFiles = [self.currentMillHal, self.currentRapidTurnHal, self.cm770_1, self.cm770_2, self.cm770_3, self.cm770_4, self.cm1100_1, self.cm1100_2, self.cm1100_3, self.cm1100_4]
+        for file in backupFiles:
             tempFile = '{}.bak'.format(file)
             if not os.path.exists(tempFile):
                 copy(file, tempFile)
-        with open(self.currentMillIni, 'r') as file:
-            text=file.read()
-        if '# Encoder added by PathPirate' in text:
-            encoder = True
-        copy(self.clearPathMillIni, self.currentMillIni)
-        copy(self.clearPathRapidTurnIni, self.currentRapidTurnIni)
-        copy(self.clearPathMill7i92Ini, self.current7i92MillIni)
-        copy(self.clearPath7i92RapidTurnIni, self.current7i92RapidTurnIni)
-        if self.machine == '770':
-            copy(self.clearPath770SpecificIni, self.current770SpecificIni)
-            copy(self.clearPath770RapidTurnSpecificIni, self.current770SpecificRapidTurnIni)
-        with open(self.currentMillIni, 'r+') as file:
-            text = file.read()
-            if encoder:
-                text += ('# Encoder added by PathPirate\n')
-                file.seek(0)
-                file.truncate()
-                file.write(text)
-        if encoder:
-            with open(self.currentMillHal, 'r') as file:
-                    for line in file:
-                        if line.startswith('setp hm2_5i25.0.encoder.03.scale'):
-                            scale = line.split()[2]
+        copy(self.cp770_1, self.cm770_1)
+        copy(self.cp770_2, self.cm770_2)
+        copy(self.cp770_3, self.cm770_3)
+        copy(self.cp770_4, self.cm770_4)
+        copy(self.cp1100_1, self.cm1100_1)
+        copy(self.cp1100_2, self.cm1100_2)
+        copy(self.cp1100_3, self.cm1100_3)
+        copy(self.cp1100_4, self.cm1100_4)
         copy(self.clearPathMillHal, self.currentMillHal)
         copy(self.clearPathRapidTurnHal, self.currentRapidTurnHal)
-        #in PP v2.9.x, the Y axis servo was not polled for fault conditions.  This fixes that.
+        if not os.path.exists(self.encoderHal):
+            with open(self.encoderHal,'w') as _:
+                pass
+        #in PP v2.9.x, the Y axis servo was not polled for fault conditions. This fixes that.
         #Tormach has since fixed this for v2.10
         if self.minorVer == 9:
             tempFile = '{}.bak'.format(self.uiLathe)
@@ -478,34 +476,19 @@ class PathPirate:
                     self.console.insert(tk.END, 'The following file has been successfully modified: ')
                     self.console.insert(tk.END, '{}\n'.format(self.uiLathe), 'pink')
         self.console.insert(tk.END, 'The following files have been successfully modified:\n')
-        self.console.insert(tk.END, '{}\n'.format(self.currentMillIni), 'pink')
         self.console.insert(tk.END, '{}\n'.format(self.currentMillHal), 'pink')
-        if self.machine == '770':
-            self.console.insert(tk.END, '{}\n'.format(self.current770SpecificIni), 'pink')
-        self.console.insert(tk.END, '{}\n'.format(self.current7i92MillIni), 'pink')
-        self.console.insert(tk.END, '{}\n'.format(self.currentRapidTurnIni), 'pink')
         self.console.insert(tk.END, '{}\n'.format(self.currentRapidTurnHal), 'pink')
-        if self.machine == '770':
-            self.console.insert(tk.END, '{}\n'.format(self.current770SpecificRapidTurnIni), 'pink')
-        self.console.insert(tk.END, '{}\n\n'.format(self.current7i92RapidTurnIni), 'pink')
-        if encoder:
-            with open(self.currentMillHal, 'r+') as file:
-                text = file.read()
-                text += ('\n#####################################################################\n')
-                text += ('# The following encoder lines were added by PathPirate\n\n')
-                text += ('unlinkp motion.spindle-speed-in\n')
-                text += ('net spindle-position hm2_5i25.0.encoder.03.position => motion.spindle-revs\n')
-                text += ('net spindle-velocity hm2_5i25.0.encoder.03.velocity => motion.spindle-speed-in\n')
-                text += ('net spindle-index-enable hm2_5i25.0.encoder.03.index-enable <=> motion.spindle-index-enable\n')
-                text += ('setp hm2_5i25.0.encoder.03.scale {}'.format(scale))
-                file.seek(0)
-                file.truncate()
-                file.write(text)
-                self.console.insert(tk.END, 'Previous encoder information has been added to: ')
-                self.console.insert(tk.END, '{}\n'.format(self.currentMillHal), 'pink')
+        self.console.insert(tk.END, '{}\n'.format(self.cm770_1), 'pink')
+        self.console.insert(tk.END, '{}\n'.format(self.cm770_2), 'pink')
+        self.console.insert(tk.END, '{}\n'.format(self.cm770_3), 'pink')
+        self.console.insert(tk.END, '{}\n'.format(self.cm770_4), 'pink')
+        self.console.insert(tk.END, '{}\n'.format(self.cm1100_1), 'pink')
+        self.console.insert(tk.END, '{}\n'.format(self.cm1100_2), 'pink')
+        self.console.insert(tk.END, '{}\n'.format(self.cm1100_3), 'pink')
+        self.console.insert(tk.END, '{}\n'.format(self.cm1100_4), 'pink')
         for file in [self.newMillBit, self.newMill7i92Bit, self.newMill7i92tBin]:
             copy(file, self.mesaPath)
-        self.console.insert(tk.END, 'The necessary firmwares have been copied to:\n')
+        self.console.insert(tk.END, '\nThe necessary firmwares have been copied to:\n')
         self.console.insert(tk.END, '{}\n'.format(self.mesaPath), 'pink')
         self.restartRequired = True
         self.console.insert(tk.END, '\nA RESTART IS REQUIRED FOR CHANGES TO TAKE EFFECT!\n', 'white')
@@ -536,7 +519,7 @@ class PathPirate:
         self.console.insert(tk.END, '{}\n\n'.format(self.currentLatheHal), 'pink')
         for file in [self.newLatheBin]:
             copy(file, self.mesaPath)
-        self.console.insert(tk.END, 'The necessary firmwares have been copied to:\n')
+        self.console.insert(tk.END, '\nThe necessary firmwares have been copied to:\n')
         self.console.insert(tk.END, '{}\n'.format(self.mesaPath), 'pink')
         self.restartRequired = True
         self.console.insert(tk.END, '\nA RESTART IS REQUIRED FOR CHANGES TO TAKE EFFECT!\n', 'white')
@@ -551,19 +534,16 @@ class PathPirate:
         halshowPath = os.path.join(self.sourcePath, 'halshow.tcl')
         cbuttonPath = os.path.join(self.sourcePath, 'cbutton.tcl')
         try:
-            changedFilesList = [self.uiCommon, self.uiLathe, self.hal1, self.hal2, self.velPath, self.currentMillHal, self.currentMillIni, self.current7i92MillIni, self.currentRapidTurnIni, self.current7i92RapidTurnIni, self.currentRapidTurnHal, self.currentLatheHal, self.currentLatheIni, self.tooltips, self.plasmaControls, self.latheControls, self.millControls]
-            if self.machine == '770':
-                changedFilesList.append(self.current770SpecificIni)
-                changedFilesList.append(self.current770SpecificRapidTurnIni)
+            changedFilesList = [self.uiCommon, self.uiLathe, self.consoleHal1, self.consoleHal2, self.velImage, self.currentMillIni, self.currentMillHal, self.cm1100_1, self.cm1100_2, self.cm1100_3, self.cm1100_4, self.cm770_1, self.cm770_2, self.cm770_3, self.cm770_4, self.currentRapidTurnHal, self.currentLatheHal, self.currentLatheIni, self.tooltips, self.plasmaControls, self.latheControls, self.millControls]
             for file in changedFilesList:
                 tempFile = '{}.bak'.format(file)
                 if os.path.exists(tempFile):
                     change = True
                     copy(tempFile, file)
                     os.remove(tempFile)
-            for firmware in [self.pathPirateMillFirmware, self.pathPirateMill7i92Firmware, self.pathPirateMill7i92tFirmware, self.pathPirateLatheFirmware]:
-                if os.path.exists(firmware):
-                    os.remove(firmware)
+            for file in [self.encoderHal, self.pathPirateMillFirmware, self.pathPirateMill7i92Firmware, self.pathPirateMill7i92tFirmware, self.pathPirateLatheFirmware]:
+                if os.path.exists(file):
+                    os.remove(file)
             for file in [halshowPath, cbuttonPath]:
                 if os.path.exists(file):
                     halshow = True
@@ -624,27 +604,9 @@ class PathPirate:
         # machine options: 1100-3, 770, 15L Slant-PRO
         # currently the 1100-3 and 7700 are supported, 15L Slant-PRO is in development
         if self.machine in ['770', '1100-3']:
-            self.current7i92MillIni = os.path.join(self.tmc, 'configs/tormach_mill/tormach_{}_7i92_specific.ini'.format(self.machine))
-            self.current7i92RapidTurnIni = os.path.join(self.tmc, \
-            'configs/tormach_lathe/tormach_{}_7i92_rapidturn_specific.ini'.format(self.machine))
             self.clearPathMillHal = os.path.join(self.pathPirateDir, 'files/configs/{}/pathpirate_cpm_hsh_mill.hal'.format(self.versionFolder))
-            self.clearPathMillIni = os.path.join(self.pathPirateDir, 'files/configs/{}/pathpirate_cpm_hsh_mill.ini'.format(self.versionFolder))
-            self.clearPathMill7i92Ini = os.path.join(self.pathPirateDir, \
-            'files/configs/{}/pathpirate_cpm_hsh_{}_7i92_specific.ini'.format(self.versionFolder, self.machine))
             self.clearPathRapidTurnHal = os.path.join(self.pathPirateDir, \
             'files/configs/{}/pathpirate_cpm_hsh_rapidturn.hal'.format(self.versionFolder, self.machine))
-            self.clearPathRapidTurnIni = os.path.join(self.pathPirateDir, \
-            'files/configs/{}/pathpirate_cpm_hsh_rapidturn.ini'.format(self.versionFolder, self.machine))
-            self.clearPath7i92RapidTurnIni = os.path.join(self.pathPirateDir, \
-            'files/configs/{}/pathpirate_cpm_hsh_{}_7i92_rapidturn_specific.ini'.format(self.versionFolder, self.machine))
-            if self.machine == '770':
-                self.current770SpecificIni = os.path.join(self.tmc, 'configs/tormach_mill/tormach_{}_specific.ini'.format(self.machine))
-                self.current770SpecificRapidTurnIni = os.path.join(self.tmc, \
-                'configs/tormach_lathe/tormach_{}_rapidturn_specific.ini'.format(self.machine))
-                self.clearPath770SpecificIni = os.path.join(self.pathPirateDir, \
-                'files/configs/{}/pathpirate_cpm_hsh_{}_specific.ini'.format(self.versionFolder, self.machine))
-                self.clearPath770RapidTurnSpecificIni = os.path.join(self.pathPirateDir, \
-                'files/configs/{}/pathpirate_cpm_hsh_{}_rapidturn_specific.ini'.format(self.versionFolder, self.machine))
             self.machineInfo.insert(tk.END, 'Machine Model is: {}\n'.format(self.machine))
         elif self.machine == '15L Slant-PRO':
             self.clearPathLatheHal = os.path.join(self.pathPirateDir, 'files/configs/{}/pathpirate_cpm_hsh_lathe.hal'.format(self.versionFolder))
