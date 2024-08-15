@@ -2,7 +2,7 @@
 pathpirate is a script that provides automated configuration changes to
 Tormach's PathPilot.
 
-Copyright (C) 2023  Gregory D Carl
+Copyright (C) 2023, 2024 Gregory D Carl
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -35,7 +35,7 @@ class ServoBrake:
     def __init__(self):
         # set up the main window
         self.main = tk.Tk()
-        self.main.title('PathPirate Servo Brake Release Tool v1.4')
+        self.main.title('PathPirate Servo Brake Release Tool v1.5')
         self.versionList = ['v2.9.2', 'v2.9.3', 'v2.9.4', 'v2.9.5', 'v2.9.6', 'v2.10.0', 'v2.10.1']
         win_width = 1000
         win_height = 700
@@ -65,7 +65,7 @@ class ServoBrake:
         self.engage_brake_button = tk.Button(self.button_frame, text='ENGAGE\nBRAKE', command=self.engage_brake, height=2, padx=5)
         self.engage_brake_button.pack(side=tk.LEFT, fill=tk.X, expand=True)
         self.engage_brake_button['state'] = 'disabled'
-        self.exit_button = tk.Button(self.button_frame, text='EXIT', command=self.exit_path_pirate, height=2, padx=5)
+        self.exit_button = tk.Button(self.button_frame, text='EXIT', command=self.exit_servo_brake, height=2, padx=5)
         self.exit_button.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
         # set up output text boxes
@@ -139,14 +139,18 @@ class ServoBrake:
     # Release the servo brake (energize the coil)
     # Brake is gpio.023 on EMCV1.5 machines
     def release_brake(self):
-        self.console.insert(tk.END, '\nRELEASING SERVO BRAKE\n', 'yellow')
+        self.console.insert(tk.END, '\nENERGIZING THE COIL TO RELEASE THE BRAKE...\n', 'yellow')
         out, err = self.send_commands(self.halcmd, 'gets', 'estop')
         if out.strip() != 'FALSE':
-            tkMessageBox.showinfo('ERROR', 'PathPilot has been RESET.\n\nPathPilot must be in E-STOP state (reset blinking).')
+            tkMessageBox.showinfo('ERROR', 'PathPilot has been RESET.\n\nPathPilot must be in E-STOP state (RESET blinking).')
+            self.console.insert(tk.END, 'PathPilot must be in E-STOP state (RESET blinking), unable to proceed.\n', 'cyan')
+            self.console.see(tk.END)
             return
         out, err = self.send_commands(self.halcmd, 'getp', 'tormach.machine-ok')
         if out.strip() != 'TRUE':
             tkMessageBox.showinfo('ERROR', 'Machine must be powered ON.\n\nFollow these steps:\n1. Reset physical E-STOP.\n2. Press green button.\n3. Do not click RESET in PathPirate.\n4. Press OK to try again.')
+            self.console.insert(tk.END, 'Machine must be powered ON, unable to proceed.\n', 'cyan')
+            self.console.see(tk.END)
             return
         if self.board != 'EMC1':
             out, err = self.send_commands(self.halcmd, 'unlinkp', 'hm2_{}.0.pwmgen.00.enable'.format(self.board))
@@ -165,7 +169,8 @@ class ServoBrake:
             self.console.see(tk.END)
             return
         out, err = self.send_commands(self.halcmd, 'setp', 'hm2_{}.0.gpio.{}.out'.format(self.board, self.gpio), 'true')
-        self.console.insert(tk.END, 'Servo brake must be re-engaged before program may be exited.\n', 'cyan')
+        self.console.insert(tk.END, '\nBRAKE SUCCESSFULLY RELEASED\n', 'yellow')
+        self.console.insert(tk.END, '\nServo brake must be re-engaged before program may be exited.\n', 'cyan')
         self.console.insert(tk.END, 'Axis ready for auto-tuning process.\n', 'cyan')
         self.release_brake_button['state'] = 'disabled'
         self.exit_button['state'] = 'disabled'
@@ -175,27 +180,29 @@ class ServoBrake:
     # Engage the servo brake (de-energize the coil)
     # Brake is gpio.023 on EMCV1.5 machines
     def engage_brake(self):
-        self.console.insert(tk.END, '\nENGAGING SERVO BRAKE\n', 'orange')
+        self.console.insert(tk.END, '\nDENERGIZING THE COIL TO ENGAGE THE BRAKE...\n', 'orange')
         out, err = self.send_commands(self.halcmd, 'gets', 'estop')
         if out.strip() != 'FALSE':
-            tkMessageBox.showinfo('ERROR', 'PathPilot has been RESET.\n\nPathPilot must be in E-STOP state (reset blinking).')
+            tkMessageBox.showinfo('ERROR', 'PathPilot has been RESET.\n\nPathPilot must be in E-STOP state (RESET blinking).')
+            self.console.insert(tk.END, 'PathPilot must be in E-STOP state (RESET blinking), unable to proceed.\n', 'cyan')
+            self.console.see(tk.END)
             return
         out, err = self.send_commands(self.halcmd, 'getp', 'tormach.machine-ok')
         if out.strip() != 'TRUE':
             tkMessageBox.showinfo('ERROR', 'Machine must be powered ON.\n\nFollow these steps:\n1. Reset physical E-STOP.\n2. Press green button.\n3. Do not click RESET in PathPirate.\n4. Press OK to try again.')
+            self.console.insert(tk.END, 'Machine must be powered ON, unable to proceed.\n', 'cyan')
+            self.console.see(tk.END)
             return
         self.exit_button['state'] = 'normal'
         self.engage_brake_button['state'] = 'disabled'
         out, err = self.send_commands(self.halcmd, 'setp', 'hm2_{}.0.gpio.{}.out'.format(self.board, self.gpio), 'false')
         if err.strip() != '':
-            self.engage_brake_button['state'] = 'disabled'
             self.console.insert(tk.END, '\n{}\n'.format(err), 'red')
             self.console.insert(tk.END, 'Pin not found, unable to proceed.\n', 'cyan')
             self.console.see(tk.END)
             return
         out, err = self.send_commands(self.halcmd, 'linkps', 'hm2_{}.0.gpio.{}.out'.format(self.board, self.gpio), '{}-axis-brake-release'.format(self.brake_axis))
         if err.strip() != '':
-            self.engage_brake_button['state'] = 'disabled'
             self.console.insert(tk.END, '\n{}\n'.format(err), 'red')
             self.console.insert(tk.END, 'Link unsuccessful, unable to proceed.\n', 'cyan')
             self.console.see(tk.END)
@@ -203,19 +210,18 @@ class ServoBrake:
         if self.board != 'EMC1':
             out, err = self.send_commands(self.halcmd, 'setp', 'hm2_{}.0.pwmgen.00.enable'.format(self.board), 'false')
             if err.strip() != '':
-                self.engage_brake_button['state'] = 'disabled'
                 self.console.insert(tk.END, '\n{}\n'.format(err), 'red')
                 self.console.insert(tk.END, 'Pin not found, unable to proceed.\n', 'cyan')
                 self.console.see(tk.END)
                 return
             out, err = self.send_commands(self.halcmd, 'linkps', 'hm2_{}.0.pwmgen.00.enable'.format(self.board), 'estop')
             if err.strip() != '':
-                self.engage_brake_button['state'] = 'disabled'
                 self.console.insert(tk.END, '\n{}\n'.format(err), 'red')
                 self.console.insert(tk.END, 'Link unsuccessful, unable to proceed.\n', 'cyan')
                 self.console.see(tk.END)
                 return
         self.release_brake_button['state'] = 'normal'
+        self.console.insert(tk.END, '\nBRAKE SUCCESSFUL ENGAGED\n', 'orange')
         self.console.see(tk.END)
 
     # Get the latest version number and machine model
@@ -313,16 +319,18 @@ class ServoBrake:
 MANUALLY CONTROLLING THE SERVO BRAKE CAN BE EXTREMELY DANGEROUS!
 
 ENSURE THAT THE SERVO MOTOR IS UNDER THE CONTROL OF THE TEKNIC
-AUTO-TUNE SOFTWARE BEFORE PROCEEDING.
+AUTO-TUNE SOFTWARE BEFORE RELEASING THE SERVO BRAKE.
 
 THE USE OF CRIBBING PLACED IN THE APPROPRIATE MANNER/POSITION
-IS RECOMMENDED TO PREVENT THE AXIS FROM FREE FALLING.
+IS RECOMMENDED TO PREVENT THE Z AXIS FROM FREE FALLING.
 
-ENSURE YOU UNDERSTAND THE RISKS AND TAKE THE PROPER STEPS TO MITIGATE THEM.     
+ENSURE YOU UNDERSTAND THE RISKS AND TAKE THE PROPER STEPS TO MITIGATE THEM.
 
 THE AUTHOR OF THIS SOFTWARE ACCEPTS NO RESPONSIBLITY WHATSOEVER FOR
-ANY DAMAGES OR INJURIES INCURRED FROM THE USE OF THIS SOFTWARE.'''
-        warning = tkMessageBox.askokcancel('WARNING', warning_message)
+ANY DAMAGES OR INJURIES INCURRED FROM THE USE OF THIS SOFTWARE.
+
+BY CLICKING "OK" YOU AGREE.'''
+        warning = tkMessageBox.askokcancel('END USER WARNING AGREEMENT', warning_message)
         if warning:
             self.release_brake_button['state'] = 'normal'
             self.console.insert(tk.END, warning_message, 'bold')
@@ -337,8 +345,8 @@ ANY DAMAGES OR INJURIES INCURRED FROM THE USE OF THIS SOFTWARE.'''
         out, err = state.communicate()
         return out, err
 
-    # Exits PathPirate and checks if the user would like to reboot automatically
-    def exit_path_pirate(self):
+    # Exit the program
+    def exit_servo_brake(self):
         exit = tkMessageBox.askokcancel('EXIT', 'Are you sure?')
         if exit:
             self.main.destroy()
