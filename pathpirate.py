@@ -495,7 +495,7 @@ class PathPirate:
         self.console.insert(tk.END, 'You will be prompted to restart upon exiting PathPirate\n', 'white')
         self.console.see(tk.END)
 
-    # Adds ClearPath Servos to a mill (that is using a Mesa 7i85s card)
+    # Adds ClearPath Servos to a lathe (that is using a Mesa 7i85s card)
     def addServosLathe(self, event=None):
         self.console.insert(tk.END, '\n-----------------------\nADDING CLEARPATH SERVOS\n-----------------------\n', 'yellow')
         missing = False
@@ -514,6 +514,22 @@ class PathPirate:
                 copy(file, tempFile)
         copy(self.clearPathLatheIni, self.currentLatheIni)
         copy(self.clearPathLatheHal, self.currentLatheHal)
+        tempFile = '{}.bak'.format(self.uiLathe)
+        if not os.path.exists(tempFile):
+            copy(self.uiLathe, tempFile)
+        with open(self.uiLathe, 'r+') as file:
+            text = file.read()
+            if 'PathPirate' in text:
+                self.console.insert(tk.END, 'The necessary modifications are already present in the following file: ')
+                self.console.insert(tk.END, '{}\n'.format(self.uiLathe), 'pink')
+            else:
+                text = text.replace('max_maxvel = 100.0', 'max_maxvel = 300.0#Changed by PathPirate')
+                text = text.replace('max_maxvel = max_maxvel * 1.2', '#max_maxvel = max_maxvel * 1.2#Changed by PathPirate')
+                file.seek(0)
+                file.truncate()
+                file.write(text)
+                self.console.insert(tk.END, 'The following file has been successfully modified: ')
+                self.console.insert(tk.END, '{}\n'.format(self.uiLathe), 'pink')
         self.console.insert(tk.END, 'The following files have been successfully modified:\n')
         self.console.insert(tk.END, '{}\n'.format(self.currentLatheIni), 'pink')
         self.console.insert(tk.END, '{}\n\n'.format(self.currentLatheHal), 'pink')
