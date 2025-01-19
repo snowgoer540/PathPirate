@@ -2,7 +2,7 @@
 pathpirate is a script that provides automated configuration changes to
 Tormach's PathPilot.
 
-Copyright (C) 2023, 2024 Gregory D Carl
+Copyright (C) 2023, 2024, 2025 Gregory D Carl
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -38,7 +38,7 @@ class PathPirate:
         # set up the main window
         self.main = tk.Tk()
         self.main.title("PathPirate Configurator v1.5 for Tormach's PathPilot")
-        self.versionList = ['v2.9.2', 'v2.9.3', 'v2.9.4', 'v2.9.5', 'v2.9.6', 'v2.10.0', 'v2.10.1']
+        self.versionList = ['v2.9.2', 'v2.9.3', 'v2.9.4', 'v2.9.5', 'v2.9.6', 'v2.10.0', 'v2.10.1', 'v2.12.0']
         winWidth = 1000
         winHeight = 700
         screenWidth = self.main.winfo_screenwidth()
@@ -222,8 +222,12 @@ class PathPirate:
         change = False
         if self.minorVer == 9:
             list = [self.uiCommon, self.consoleHal1, self.consoleHal2, self.tooltips, self.velImage, self.rapidImage]
-        elif self.minorVer == 10:
+        elif self.minorVer in [10, 12]:
             list = [self.uiCommon, self.consoleHal1, self.consoleHal2, self.tooltips, self.plasmaControls, self.latheControls, self.millControls]
+        else:
+            self.console.insert(tk.END, '\nMinor Version: {} not yet supported. Aborting...\n'.format(self.minorVer), 'red')
+            self.console.see(tk.END)
+            return
         for file in list:
             if not os.path.exists(file):
                 self.console.insert(tk.END, 'The following required file is missing: ', 'red')
@@ -283,7 +287,7 @@ class PathPirate:
                 self.console.insert(tk.END, 'Image file copied to: ')
                 self.console.insert(tk.END, '{}\n'.format(self.velImage), 'pink')
                 change = True
-        elif self.minorVer == 10:
+        elif self.minorVer in [10, 12]:
             for modFile in [self.plasmaControls, self.latheControls, self.millControls]:
                 tempFile = '{}.bak'.format(modFile)
                 if not os.path.exists(tempFile):

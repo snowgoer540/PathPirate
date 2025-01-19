@@ -2,7 +2,7 @@
 pathpirate is a script that provides automated configuration changes to
 Tormach's PathPilot.
 
-Copyright (C) 2023, 2024 Gregory D Carl
+Copyright (C) 2023, 2024, 2025 Gregory D Carl
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
