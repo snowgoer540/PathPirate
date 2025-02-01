@@ -3,7 +3,7 @@
 # Tormach PCNC mill HAL config for 5i25/7i92 I/O
 #
 # This config was modified by PathPirate to add ClearPath servos
-# PathPilot v2.10.1
+# PathPilot v2.12.1
 
 loadrt square3kins
 loadusr -W hwmon $INI_FILE_NAME

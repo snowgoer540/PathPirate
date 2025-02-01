@@ -1,6 +1,6 @@
 # Tormach Lathe Hal file for Mesa 5i25 and 7i92
 # This config was modified by PathPirate to add ClearPath servos
-# PathPilot v2.10.1
+# PathPilot v2.12.1
 
 # load RT components
 loadrt square3kins
