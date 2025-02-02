@@ -35,7 +35,7 @@ class ServoBrake:
     def __init__(self):
         # set up the main window
         self.main = tk.Tk()
-        self.main.title("PathPirate Servo Brake Release Tool v1.6 for Tormach's PathPilot v2.9.2 - v2.12.1")
+        self.main.title("PathPirate Servo Brake Release Tool v1.6.1 for Tormach's PathPilot v2.9.2 - v2.12.1")
         self.versionList = ['v2.9.2', 'v2.9.3', 'v2.9.4', 'v2.9.5', 'v2.9.6', 'v2.10.0', 'v2.10.1', 'v2.12.0', 'v2.12.1']
         win_width = 1000
         win_height = 700
@@ -121,8 +121,6 @@ class ServoBrake:
 
         self.board = ''
 
-        os.chdir(self.halcmd_folder)
-
         # get current version and machine info
         self.get_version()
 
@@ -140,7 +138,7 @@ class ServoBrake:
     # Brake is gpio.023 on EMCV1.5 machines
     def release_brake(self):
         self.console.insert(tk.END, '\nENERGIZING THE COIL TO RELEASE THE BRAKE...\n', 'yellow')
-        out, err = self.send_commands(self.halcmd, 'gets', 'estop')
+        out, err = self.send_commands(self.halcmd, 'gets', self.estop_signal)
         if out.strip() != 'FALSE':
             tkMessageBox.showinfo('ERROR', 'PathPilot has been RESET.\n\nPathPilot must be in E-STOP state (RESET blinking).')
             self.console.insert(tk.END, 'PathPilot must be in E-STOP state (RESET blinking), unable to proceed.\n', 'cyan')
@@ -181,7 +179,7 @@ class ServoBrake:
     # Brake is gpio.023 on EMCV1.5 machines
     def engage_brake(self):
         self.console.insert(tk.END, '\nDENERGIZING THE COIL TO ENGAGE THE BRAKE...\n', 'orange')
-        out, err = self.send_commands(self.halcmd, 'gets', 'estop')
+        out, err = self.send_commands(self.halcmd, 'gets', self.estop_signal)
         if out.strip() != 'FALSE':
             tkMessageBox.showinfo('ERROR', 'PathPilot has been RESET.\n\nPathPilot must be in E-STOP state (RESET blinking).')
             self.console.insert(tk.END, 'PathPilot must be in E-STOP state (RESET blinking), unable to proceed.\n', 'cyan')
@@ -214,7 +212,7 @@ class ServoBrake:
                 self.console.insert(tk.END, 'Pin not found, unable to proceed.\n', 'cyan')
                 self.console.see(tk.END)
                 return
-            out, err = self.send_commands(self.halcmd, 'linkps', 'hm2_{}.0.pwmgen.00.enable'.format(self.board), 'estop')
+            out, err = self.send_commands(self.halcmd, 'linkps', 'hm2_{}.0.pwmgen.00.enable'.format(self.board), self.estop_signal)
             if err.strip() != '':
                 self.console.insert(tk.END, '\n{}\n'.format(err), 'red')
                 self.console.insert(tk.END, 'Link unsuccessful, unable to proceed.\n', 'cyan')
@@ -232,6 +230,7 @@ class ServoBrake:
         if not os.path.exists(self.halcmd_folder):
             self.current_version_info.insert(tk.END, 'ERROR: ~/tmc/bin does not exist, is PathPilot installed?\n', 'red')
             return
+        os.chdir(self.halcmd_folder)
         if not os.path.exists(self.halcmd):
             self.current_version_info.insert(tk.END, 'ERROR: ~/tmc/bin/halcmd does not exist, is PathPilot installed?\n', 'red')
             return
@@ -242,7 +241,7 @@ class ServoBrake:
             self.machine_info.insert(tk.END, 'ERROR: {} is missing! Unable to proceed!\n'.format(self.machine_file), 'red')
             return
         if not os.path.exists(self.mill_hal):
-            self.current_version_info.insert(tk.END, 'ERROR: {} is missing! Unable to proceed!\n'.format(self.version_file), 'red')
+            self.current_version_info.insert(tk.END, 'ERROR: {} is missing! Unable to proceed!\n'.format(self.mill_hal), 'red')
             return
         with open(self.version_file, 'r') as json_file:
             version_data = json.load(json_file)
@@ -251,7 +250,11 @@ class ServoBrake:
             self.current_version_info.insert(tk.END, 'ERROR: PathPirate is not compatible with version {}! Unable to proceed!\n'.format(self.current_ver), 'red')
             self.console.insert(tk.END, '\nThe following versions are currently supported: {}\n'.format(', '.join(self.versionList)), 'yellow')
             return
-        self.minorVer = int(self.current_ver.split('.')[1])
+        self.minor_ver = int(self.current_ver.split('.')[1])
+        if self.minor_ver > 10:
+            self.estop_signal = 'not-estop-signal'
+        else:
+            self.estop_signal = 'estop'
         self.current_version_info.insert(tk.END, 'Current Version of PathPilot is: {}\n'.format(self.current_ver))
         with open(self.machine_file, 'r') as json_file:
             machine_data = json.load(json_file)
@@ -286,25 +289,27 @@ class ServoBrake:
             self.brake_axis = 'z'
         #keeps the upcoming dialogs on top
         self.main.lower()
-        out, err = self.send_commands(self.halcmd, 'gets', 'estop')
+        out, err = self.send_commands(self.halcmd, 'gets', self.estop_signal)
         if err.strip() != '':
             tkMessageBox.showinfo('ERROR', 'PathPilot is not running.\n\nRestart this program after starting PathPilot.')
             return
         if out.strip() == 'TRUE':
             try_again = tkMessageBox.askokcancel('ERROR', 'Machine must be in E-STOP state (RESET blinking).\n\nE-STOP the machine and press OK to try again.')
-            if try_again:
-                 out, err = self.send_commands(self.halcmd, 'gets', 'estop')
-                 if out.strip() == 'TRUE':
-                     try_again = tkMessageBox.showinfo('ERROR', 'Machine must be in E-STOP state (RESET blinking).\n\nE-STOP the machine and restart this program to try again.')
-                     return
+            if not try_again:
+                return
+            out, err = self.send_commands(self.halcmd, 'gets', self.estop_signal)
+            if out.strip() == 'TRUE':
+                try_again = tkMessageBox.showinfo('ERROR', 'Machine must be in E-STOP state (RESET blinking).\n\nE-STOP the machine and restart this program to try again.')
+                return
         out, err = self.send_commands(self.halcmd, 'getp', 'tormach.machine-ok')
         if out.strip() != 'TRUE':
             try_again = tkMessageBox.askokcancel('ERROR', 'Machine must be powered ON.\n\nFollow these steps:\n1. Reset physical E-STOP.\n2. Press green button.\n3. Do not click RESET in PathPirate.\n4. Press OK to try again.')
-            if try_again:
-                out, err = self.send_commands(self.halcmd, 'getp', 'tormach.machine-ok')
-                if out.strip() != 'TRUE':
-                    try_again = tkMessageBox.showinfo('ERROR', 'Machine must be powered ON.\n\nFollow these steps:\n1. Reset physical E-STOP.\n2. Press green button.\n3. Do not click RESET in PathPirate.\n4. Restart this program to try again.')
-                    return
+            if not try_again:
+                return
+            out, err = self.send_commands(self.halcmd, 'getp', 'tormach.machine-ok')
+            if out.strip() != 'TRUE':
+                try_again = tkMessageBox.showinfo('ERROR', 'Machine must be powered ON.\n\nFollow these steps:\n1. Reset physical E-STOP.\n2. Press green button.\n3. Do not click RESET in PathPirate.\n4. Restart this program to try again.')
+                return
         # check for board type
         for board in ['5i25', '7i92', '7i92T', 'EMC1']:
             out, err = self.send_commands(self.halcmd, 'getp', 'hm2_{}.0.gpio.001.out'.format(board))
@@ -331,14 +336,13 @@ ANY DAMAGES OR INJURIES INCURRED FROM THE USE OF THIS SOFTWARE.
 
 BY CLICKING "OK" YOU AGREE.'''
         warning = tkMessageBox.askokcancel('END USER WARNING AGREEMENT', warning_message)
-        if warning:
-            self.release_brake_button['state'] = 'normal'
-            self.console.insert(tk.END, warning_message, 'bold')
-            self.console.insert(tk.END, '\n\nUSER AGREED\n', 'bold_green')
-        else:
+        if not warning:
             self.console.insert(tk.END, warning_message, 'bold')
             self.console.insert(tk.END, '\n\nUSER DECLINED\n', 'bold_red')
             return
+        self.release_brake_button['state'] = 'normal'
+        self.console.insert(tk.END, warning_message, 'bold')
+        self.console.insert(tk.END, '\n\nUSER AGREED\n', 'bold_green')
 
     def send_commands(self, *args):
         state = Popen(args, stdout=PIPE, stderr=PIPE)
@@ -348,10 +352,9 @@ BY CLICKING "OK" YOU AGREE.'''
     # Exit the program
     def exit_servo_brake(self):
         exit = tkMessageBox.askokcancel('EXIT', 'Are you sure?')
-        if exit:
-            self.main.destroy()
-        else:
-            pass
+        if not exit:
+            return
+        self.main.destroy()
 
     def exit_pass(self):
         pass
