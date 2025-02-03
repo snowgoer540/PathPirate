@@ -29,13 +29,14 @@ else:
 from subprocess import Popen, PIPE
 import os
 import json
+import time
 
 class ServoBrake:
 
     def __init__(self):
         # set up the main window
         self.main = tk.Tk()
-        self.main.title("PathPirate Servo Brake Release Tool v1.6.1 for Tormach's PathPilot v2.9.2 - v2.12.1")
+        self.main.title("PathPirate Servo Brake Release Tool v1.6.2 for Tormach's PathPilot v2.9.2 - v2.12.1")
         self.versionList = ['v2.9.2', 'v2.9.3', 'v2.9.4', 'v2.9.5', 'v2.9.6', 'v2.10.0', 'v2.10.1', 'v2.12.0', 'v2.12.1']
         win_width = 1000
         win_height = 700
@@ -137,39 +138,87 @@ class ServoBrake:
     # Release the servo brake (energize the coil)
     # Brake is gpio.023 on EMCV1.5 machines
     def release_brake(self):
-        self.console.insert(tk.END, '\nENERGIZING THE COIL TO RELEASE THE BRAKE...\n', 'yellow')
+        self.console.insert(tk.END, '\nRELEASE BRAKE CLICKED', 'orange')
+        self.console.insert(tk.END, '\nChecking E-STOP status...........................................', 'yellow')
         out, err = self.send_commands(self.halcmd, 'gets', self.estop_signal)
         if out.strip() != 'FALSE':
+            self.console.insert(tk.END, 'FAILED\n', 'red')
             tkMessageBox.showinfo('ERROR', 'PathPilot has been RESET.\n\nPathPilot must be in E-STOP state (RESET blinking).')
             self.console.insert(tk.END, 'PathPilot must be in E-STOP state (RESET blinking), unable to proceed.\n', 'cyan')
             self.console.see(tk.END)
             return
+        self.console.insert(tk.END, 'OK\n', 'green')
+
+        self.console.insert(tk.END, 'Checking machine status..........................................', 'yellow')
         out, err = self.send_commands(self.halcmd, 'getp', 'tormach.machine-ok')
         if out.strip() != 'TRUE':
+            self.console.insert(tk.END, 'FAILED\n', 'red')
             tkMessageBox.showinfo('ERROR', 'Machine must be powered ON.\n\nFollow these steps:\n1. Reset physical E-STOP.\n2. Press green button.\n3. Do not click RESET in PathPirate.\n4. Press OK to try again.')
             self.console.insert(tk.END, 'Machine must be powered ON, unable to proceed.\n', 'cyan')
             self.console.see(tk.END)
             return
+        self.console.insert(tk.END, 'OK\n', 'green')
+
+        timeout = 5
+        interval = 0.5
+        elapsed = 0
+        self.console.update_idletasks()
+        self.console.insert(tk.END, 'Ensuring servo brake output is off.', 'yellow')
+        while elapsed < timeout:
+            out, err = self.send_commands(self.halcmd, 'getp', 'hm2_{}.0.gpio.{}.out'.format(self.board, self.gpio))
+            if out.strip() == 'FALSE':
+                self.console.insert(tk.END, '.............................OK\n', 'green')
+                break
+            time.sleep(interval)
+            elapsed += interval
+            self.console.insert(tk.END, '...', 'yellow')
+            self.console.update_idletasks()
+        else:
+            self.console.insert(tk.END, 'FAILED\n', 'red')
+            self.console.update_idletasks()
+            tkMessageBox.showinfo('ERROR', 'Servo brake output pin did turn off within 5 seconds. Unable to proceed.\nPress E-STOP and wait a full 10 seconds before powering the machine on.\nThen restart this program to try again.\n')
+            self.console.insert(tk.END, '\nServo brake output pin did turn off within 5 seconds. Unable to proceed.\n', 'red')
+            self.console.insert(tk.END, 'Press E-STOP and wait a full 10 seconds before powering the machine on.\n', 'red')
+            self.console.insert(tk.END, 'Then restart this program to try again.\n', 'red')
+            self.console.see(tk.END)
+            self.console.update_idletasks()
+            return
+
+
+
         if self.board != 'EMC1':
+            self.console.insert(tk.END, 'Unlinking machine board servo relay control pin..................', 'yellow')
             out, err = self.send_commands(self.halcmd, 'unlinkp', 'hm2_{}.0.pwmgen.00.enable'.format(self.board))
             if err.strip() != '':
                 self.release_brake_button['state'] = 'disabled'
                 self.console.insert(tk.END, '\n{}\n'.format(err), 'red')
-                self.console.insert(tk.END, 'Pin not found, unable to proceed.\n', 'cyan')
+                self.console.insert(tk.END, 'FAILED\n', 'red')
+                self.console.insert(tk.END, 'Machine board servo relay control pin not found, unable to proceed.\n', 'cyan')
                 self.console.see(tk.END)
                 return
+            self.console.insert(tk.END, 'OK\n', 'green')
+            self.console.insert(tk.END, "Energzing machine board's servo brake relay to close contacts....", 'yellow')
             out, err = self.send_commands(self.halcmd, 'setp', 'hm2_{}.0.pwmgen.00.enable'.format(self.board), 'true')
+            self.console.insert(tk.END, 'OK\n', 'green')
+
+        self.console.insert(tk.END, 'Unlinking PathPirate servo brake coil relay pin..................', 'yellow')
         out, err = self.send_commands(self.halcmd, 'unlinkp', 'hm2_{}.0.gpio.{}.out'.format(self.board, self.gpio))
         if err.strip() != '':
             self.release_brake_button['state'] = 'disabled'
+            self.console.insert(tk.END, 'FAILED\n', 'red')
             self.console.insert(tk.END, '\n{}\n'.format(err), 'red')
-            self.console.insert(tk.END, 'Pin not found, unable to proceed.\n', 'cyan')
+            self.console.insert(tk.END, 'PathPirate servo brake coil relay pin not found, unable to proceed.\n', 'cyan')
             self.console.see(tk.END)
             return
+        self.console.insert(tk.END, 'OK\n', 'green')
+
+        self.console.insert(tk.END, '\nENERGIZING THE SERVO BRAKE COIL TO RELEASE THE BRAKE.............', 'orange')
         out, err = self.send_commands(self.halcmd, 'setp', 'hm2_{}.0.gpio.{}.out'.format(self.board, self.gpio), 'true')
-        self.console.insert(tk.END, '\nBRAKE SUCCESSFULLY RELEASED\n', 'yellow')
+
+        self.console.insert(tk.END, 'OK\n', 'green')
+        self.console.insert(tk.END, '\nBRAKE SUCCESSFULLY RELEASED\n', 'bold_green')
         self.console.insert(tk.END, '\nServo brake must be re-engaged before program may be exited.\n', 'cyan')
-        self.console.insert(tk.END, 'Axis ready for auto-tuning process.\n', 'cyan')
+        self.console.insert(tk.END, '{} Axis ready for auto-tuning process.\n'.format(self.brake_axis.upper()), 'cyan')
         self.release_brake_button['state'] = 'disabled'
         self.exit_button['state'] = 'disabled'
         self.engage_brake_button['state'] = 'normal'
@@ -178,48 +227,70 @@ class ServoBrake:
     # Engage the servo brake (de-energize the coil)
     # Brake is gpio.023 on EMCV1.5 machines
     def engage_brake(self):
-        self.console.insert(tk.END, '\nDENERGIZING THE COIL TO ENGAGE THE BRAKE...\n', 'orange')
+        self.console.insert(tk.END, '\nENGAGE BRAKE CLICKED', 'orange')
+        self.console.insert(tk.END, '\nChecking E-STOP status...........................................', 'yellow')
         out, err = self.send_commands(self.halcmd, 'gets', self.estop_signal)
         if out.strip() != 'FALSE':
+            self.console.insert(tk.END, 'FAILED\n', 'red')
             tkMessageBox.showinfo('ERROR', 'PathPilot has been RESET.\n\nPathPilot must be in E-STOP state (RESET blinking).')
             self.console.insert(tk.END, 'PathPilot must be in E-STOP state (RESET blinking), unable to proceed.\n', 'cyan')
             self.console.see(tk.END)
             return
+        self.console.insert(tk.END, 'OK\n', 'green')
+
+        self.console.insert(tk.END, 'Checking machine status..........................................', 'yellow')
         out, err = self.send_commands(self.halcmd, 'getp', 'tormach.machine-ok')
         if out.strip() != 'TRUE':
             tkMessageBox.showinfo('ERROR', 'Machine must be powered ON.\n\nFollow these steps:\n1. Reset physical E-STOP.\n2. Press green button.\n3. Do not click RESET in PathPirate.\n4. Press OK to try again.')
             self.console.insert(tk.END, 'Machine must be powered ON, unable to proceed.\n', 'cyan')
             self.console.see(tk.END)
             return
+        self.console.insert(tk.END, 'OK\n', 'green')
+
         self.exit_button['state'] = 'normal'
         self.engage_brake_button['state'] = 'disabled'
+        self.console.insert(tk.END, '\nDENERGIZING THE COIL TO ENGAGE THE BRAKE.........................', 'orange')
         out, err = self.send_commands(self.halcmd, 'setp', 'hm2_{}.0.gpio.{}.out'.format(self.board, self.gpio), 'false')
         if err.strip() != '':
+            self.console.insert(tk.END, 'FAILED\n', 'red')
             self.console.insert(tk.END, '\n{}\n'.format(err), 'red')
-            self.console.insert(tk.END, 'Pin not found, unable to proceed.\n', 'cyan')
+            self.console.insert(tk.END, 'PathPirate servo brake coil relay pin not found, unable to proceed.\n', 'cyan')
             self.console.see(tk.END)
             return
+        self.console.insert(tk.END, 'OK\n', 'green')
+        self.console.insert(tk.END, '\n\nBRAKE SUCCESSFUL APPLIED\n\n', 'bold_green')
+
+        self.console.insert(tk.END, 'Linking PathPirate servo brake coil relay pin....................', 'yellow')
         out, err = self.send_commands(self.halcmd, 'linkps', 'hm2_{}.0.gpio.{}.out'.format(self.board, self.gpio), '{}-axis-brake-release'.format(self.brake_axis))
         if err.strip() != '':
+            self.console.insert(tk.END, 'FAILED\n', 'red')
             self.console.insert(tk.END, '\n{}\n'.format(err), 'red')
             self.console.insert(tk.END, 'Link unsuccessful, unable to proceed.\n', 'cyan')
             self.console.see(tk.END)
             return
+        self.console.insert(tk.END, 'OK\n', 'green')
+
         if self.board != 'EMC1':
+            self.console.insert(tk.END, "Denergzing machine board's servo brake relay to close contacts...", 'yellow')
             out, err = self.send_commands(self.halcmd, 'setp', 'hm2_{}.0.pwmgen.00.enable'.format(self.board), 'false')
             if err.strip() != '':
+                self.console.insert(tk.END, 'FAILED\n', 'red')
                 self.console.insert(tk.END, '\n{}\n'.format(err), 'red')
                 self.console.insert(tk.END, 'Pin not found, unable to proceed.\n', 'cyan')
                 self.console.see(tk.END)
                 return
+            self.console.insert(tk.END, 'OK\n', 'green')
+            self.console.insert(tk.END, 'Linking machine board servo relay control pin....................', 'yellow')
             out, err = self.send_commands(self.halcmd, 'linkps', 'hm2_{}.0.pwmgen.00.enable'.format(self.board), self.estop_signal)
             if err.strip() != '':
+                self.console.insert(tk.END, 'FAILED\n', 'red')
                 self.console.insert(tk.END, '\n{}\n'.format(err), 'red')
                 self.console.insert(tk.END, 'Link unsuccessful, unable to proceed.\n', 'cyan')
                 self.console.see(tk.END)
                 return
+            self.console.insert(tk.END, 'OK\n', 'green')
+
         self.release_brake_button['state'] = 'normal'
-        self.console.insert(tk.END, '\nBRAKE SUCCESSFUL ENGAGED\n', 'orange')
         self.console.see(tk.END)
 
     # Get the latest version number and machine model
@@ -298,8 +369,8 @@ class ServoBrake:
             if not try_again:
                 return
             out, err = self.send_commands(self.halcmd, 'gets', self.estop_signal)
-            if out.strip() == 'TRUE':
-                try_again = tkMessageBox.showinfo('ERROR', 'Machine must be in E-STOP state (RESET blinking).\n\nE-STOP the machine and restart this program to try again.')
+            if out.strip() != 'FALSE':
+                try_again = tkMessageBox.showinfo('ERROR', 'PathPilot must be in E-STOP state (RESET blinking).\n\nE-STOP the machine and restart this program to try again.')
                 return
         out, err = self.send_commands(self.halcmd, 'getp', 'tormach.machine-ok')
         if out.strip() != 'TRUE':
