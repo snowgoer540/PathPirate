@@ -365,7 +365,7 @@ class ServoBrake:
             tkMessageBox.showinfo('ERROR', 'PathPilot is not running.\n\nRestart this program after starting PathPilot.')
             return
         if out.strip() == 'TRUE':
-            try_again = tkMessageBox.askokcancel('ERROR', 'Machine must be in E-STOP state (RESET blinking).\n\nE-STOP the machine and press OK to try again.')
+            try_again = tkMessageBox.askokcancel('ERROR', 'PathPilot must be in E-STOP state (RESET blinking).\n\nE-STOP the machine and press OK to try again.')
             if not try_again:
                 return
             out, err = self.send_commands(self.halcmd, 'gets', self.estop_signal)
