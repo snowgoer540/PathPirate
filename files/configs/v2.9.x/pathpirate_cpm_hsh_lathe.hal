@@ -12,7 +12,7 @@ loadrt estop_latch
 loadrt tormachltc
 #loadrt near
 loadrt gearchange count=1
-loadrt not names=prog-not-idle,x-fault-not
+loadrt not names=prog-not-idle
 loadrt machineokdb names=machine-ok-db
 loadrt and2 names=probe-enable-input
 loadrt tormachcolletcontrol
@@ -95,7 +95,6 @@ addf debounce.2 servo-thread
 addf probe-active-hi-lo servo-thread
 addf probe-enable-input servo-thread
 
-addf x-fault-not servo-thread
 addf x-home2hstop servo-thread
 addf y-home2hstop servo-thread
 addf z-home2hstop servo-thread
@@ -322,7 +321,7 @@ setp hm2_[HOSTMOT2](BOARD).0.gpio.024.out           0
 setp hm2_[HOSTMOT2](BOARD).0.gpio.024.invert_output 1
 setp hm2_[HOSTMOT2](BOARD).0.gpio.024.is_output     1
 
-# Z axis brake is controlled by home2hstop comp
+# X axis brake is controlled by home2hstop comp
 net x-axis-brake-release x-home2hstop.brake-release hm2_[HOSTMOT2](BOARD).0.gpio.024.out
 
 ########################################################################
@@ -558,8 +557,7 @@ setp hm2_[HOSTMOT2](BOARD).0.gpio.023.is_output     1
 # X axis
 # step/dir
 
-net x_fault_not hm2_[HOSTMOT2](BOARD).0.encoder.02.input-index x-fault-not.in
-net x_hlfb_raw x-fault-not.out debounce.2.2.in
+net x_fault_not hm2_[HOSTMOT2](BOARD).0.encoder.02.input-b
 net x_hlfb debounce.2.2.out x-home2hstop.hlfb
 
 # drive fault to amp-fault-in
@@ -588,7 +586,7 @@ alias param hm2_[HOSTMOT2](BOARD).0.stepgen.00.maxvel  x_axis_stepgen_maxvel
 setp hm2_[HOSTMOT2](BOARD).0.stepgen.00.maxaccel [AXIS_0]STEPGEN_MAXACCEL
 
 # X axis CPM enable chain
-net x-motor-enable-out   x-home2hstop.motor-enable-out  hm2_[HOSTMOT2](BOARD).0.gpio.023.out
+net x-motor-enable-out   x-home2hstop.motor-enable-out  hm2_[HOSTMOT2](BOARD).0.gpio.025.out
 net x-motor-state        x-home2hstop.motor-state
 net x-motor-command      x-home2hstop.motor-command
 
@@ -653,7 +651,7 @@ alias param hm2_[HOSTMOT2](BOARD).0.stepgen.01.maxvel  z_axis_stepgen_maxvel
 setp hm2_[HOSTMOT2](BOARD).0.stepgen.01.maxaccel [AXIS_2]STEPGEN_MAXACCEL
 
 # Z axis CPM enable chain
-net z-motor-enable-out  z-home2hstop.motor-enable-out hm2_[HOSTMOT2](BOARD).0.gpio.025.out
+net z-motor-enable-out  z-home2hstop.motor-enable-out hm2_[HOSTMOT2](BOARD).0.gpio.023.out
 net z-motor-state   z-home2hstop.motor-state
 net z-motor-command z-home2hstop.motor-command
 
