@@ -37,10 +37,10 @@ class PathPirate:
     def __init__(self):
         # set up the main window
         self.main = tk.Tk()
-        self.main.title("PathPirate Configurator v1.8 for Tormach's PathPilot v2.9.2 - v2.12.3")
+        self.main.title("PathPirate Configurator v1.9 for Tormach's PathPilot v2.9.2 - v2.12.5")
         self.versionList = ['v2.9.2', 'v2.9.3', 'v2.9.4', 'v2.9.5', 'v2.9.6',
                             'v2.10.0', 'v2.10.1',
-                            'v2.12.0', 'v2.12.1', 'v2.12.2', 'v2.12.3']
+                            'v2.12.0', 'v2.12.1', 'v2.12.2', 'v2.12.3', 'v2.12.5']
         winWidth = 1000
         winHeight = 700
         screenWidth = self.main.winfo_screenwidth()
