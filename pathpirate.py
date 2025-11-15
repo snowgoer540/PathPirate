@@ -225,12 +225,8 @@ class PathPirate:
         change = False
         if self.minorVer == 9:
             list = [self.uiCommon, self.consoleHal1, self.consoleHal2, self.tooltips, self.velImage, self.rapidImage]
-        elif self.minorVer in [10, 12]:
-            list = [self.uiCommon, self.consoleHal1, self.consoleHal2, self.tooltips, self.plasmaControls, self.latheControls, self.millControls]
         else:
-            self.console.insert(tk.END, '\nMinor Version: {} not yet supported. Aborting...\n'.format(self.minorVer), 'red')
-            self.console.see(tk.END)
-            return
+            list = [self.uiCommon, self.consoleHal1, self.consoleHal2, self.tooltips, self.plasmaControls, self.latheControls, self.millControls]
         for file in list:
             if not os.path.exists(file):
                 self.console.insert(tk.END, 'The following required file is missing: ', 'red')
@@ -290,7 +286,7 @@ class PathPirate:
                 self.console.insert(tk.END, 'Image file copied to: ')
                 self.console.insert(tk.END, '{}\n'.format(self.velImage), 'pink')
                 change = True
-        elif self.minorVer in [10, 12]:
+        else:
             for modFile in [self.plasmaControls, self.latheControls, self.millControls]:
                 tempFile = '{}.bak'.format(modFile)
                 if not os.path.exists(tempFile):
