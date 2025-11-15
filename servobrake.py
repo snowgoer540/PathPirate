@@ -36,10 +36,11 @@ class ServoBrake:
     def __init__(self):
         # set up the main window
         self.main = tk.Tk()
-        self.main.title("PathPirate Servo Brake Release Tool v1.9 for Tormach's PathPilot v2.9.2 - v2.12.5")
+        self.main.title("PathPirate Servo Brake Release Tool v1.10 for Tormach's PathPilot v2.9.2 - v2.13.0")
         self.versionList = ['v2.9.2', 'v2.9.3', 'v2.9.4', 'v2.9.5', 'v2.9.6',
                             'v2.10.0', 'v2.10.1',
-                            'v2.12.0', 'v2.12.1', 'v2.12.2', 'v2.12.3', 'v2.12.5']
+                            'v2.12.0', 'v2.12.1', 'v2.12.2', 'v2.12.3', 'v2.12.5',
+                            'v2.13.0']
         win_width = 1000
         win_height = 700
         screen_width = self.main.winfo_screenwidth()

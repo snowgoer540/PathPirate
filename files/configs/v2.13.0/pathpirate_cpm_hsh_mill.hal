@@ -1,0 +1,765 @@
+########################################################################
+#
+# Tormach PCNC mill HAL config for 5i25 (and 7i92) Mesa I/O
+#
+# Modified to work with 7i92 as well. The only difference being the
+# hm2_pci/hm2_eth driver and related parameters
+#
+# This config was modified by PathPirate to add ClearPath servos
+# PathPilot v2.13.0
+
+loadrt square3kins
+loadusr -W hwmon $INI_FILE_NAME
+loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD num_joints=[TRAJ]AXES num_dio=64 num_aio=64
+loadrt hostmot2
+loadrt [HOSTMOT2]DRIVER [HOSTMOT2]DRIVER_PARAMS
+loadrt estop_latch
+loadrt toggle count=1
+loadrt not names=prog-not-idle,axis3-not-homing,z-fault-not,not-estop
+loadrt gearchange count=1
+loadrt xor2 names=probe-active-hi-lo
+loadrt or2 names=motor.00.home-state,motor.01.home-state,motor.02.home-state,motor.03.home-state
+loadrt debounce cfg=6,3
+loadrt pid num_chan=4
+loadrt tormachspindle names=tormachspindle
+loadrt and2 names=probe-enable-input,door-limit-in,fake-door-lock,fake-probe2
+loadrt home2hstop names=x-home2hstop,y-home2hstop,z-home2hstop
+
+####################################################################
+# Z_BOT ATC HAL COMPONENT
+loadusr -Wn zbotatc -n zbotatc python/hal_zbotatc.py
+
+# END ATC HAL COMPONENT
+###################################################################
+
+####################################################################
+# Z_BOT SMART COOL HAL COMPONENT
+ loadusr -Wn zbotschnozz python/hal_zbotschnozz.py -n zbotschnozz
+
+# END SMART COOL HAL COMPONENT
+#####################################################################
+
+##########################################################################
+#  TORMACH HEIGHT GAUGE
+
+loadusr -W tormachheightgauge
+
+######################################################################
+# 16 PIN USBIO COMPONENT
+
+loadusr -Wn usbio usbio.py -n usbio
+
+########################################################################
+# servo thread
+# mesa card .read should be the first thing added to the servo-thread
+# where .write should be the last thing added. that way everything
+# gets the freshest data from .read and .write sets all the new output data
+#
+addf hm2_[HOSTMOT2](BOARD).0.read servo-thread
+
+addf motion-command-handler servo-thread
+addf motion-controller servo-thread
+
+addf estop-latch.0 servo-thread
+
+addf toggle.0           servo-thread
+addf prog-not-idle      servo-thread
+addf axis3-not-homing   servo-thread
+addf not-estop          servo-thread
+addf z-fault-not        servo-thread
+addf gearchange.0       servo-thread
+addf probe-active-hi-lo servo-thread
+
+# these aren't used in sim, but are here for efficiency of maintenance
+addf motor.00.home-state servo-thread
+addf motor.01.home-state servo-thread
+addf motor.02.home-state servo-thread
+addf motor.03.home-state servo-thread
+
+addf debounce.0 servo-thread
+addf debounce.1 servo-thread
+
+addf pid.0.do-pid-calcs servo-thread
+addf pid.1.do-pid-calcs servo-thread
+addf pid.2.do-pid-calcs servo-thread
+addf pid.3.do-pid-calcs servo-thread
+
+addf tormachspindle servo-thread
+
+addf probe-enable-input servo-thread
+addf door-limit-in      servo-thread
+
+addf x-home2hstop servo-thread
+addf y-home2hstop servo-thread
+addf z-home2hstop servo-thread
+
+addf fake-door-lock servo-thread
+addf fake-probe2 servo-thread
+
+# .write should be last after new outputs are computed
+# in servo-thread
+addf hm2_[HOSTMOT2](BOARD).0.write servo-thread
+
+########################################################################
+# must noise debounce inputs - otherwise coolant on/off can cause spurious estops
+# debounce delay for X, Y, Z, machine ok, probe, and door switch
+setp debounce.0.delay 10
+
+# separate debounce delay for HLFB debouncing for clearpaths (X, Y, Z)
+setp debounce.1.delay 3
+
+########################################################################
+# 5i25 watchdog timeout
+# 10 milliseconds (~10 times the servo loop period)
+setp hm2_[HOSTMOT2](BOARD).0.watchdog.timeout_ns 10000000
+net watchdog-signal hm2_[HOSTMOT2](BOARD).0.watchdog.has_bit
+
+########################################################################
+# 5i25 (or 7i92)
+# Configuration pin-out:
+#
+#                    IO Connections for P3
+#    Mill Function   Pin#    I/O     Pri. func    Sec. func    Chan      Pin func        Pin Dir
+#
+#    Spindle Speed    1        0     IOPort       StepGen       4        Step/Table1     (Out)
+#    Coolant         14        1     IOPort       None                                   (Out)
+#    X Direction      2        2     IOPort       StepGen       0        Dir/Table2      (Out)
+#    Estop Reset     15        3     IOPort       None                                   (In)
+#    X Step           3        4     IOPort       StepGen       0        Step/Table1     (Out)
+#    Spindle Dir     16        5     IOPort       None                                   (Out)
+#    Y Direction      4        6     IOPort       StepGen       1        Dir/Table2      (Out)
+#    Charge Pump     17        7     IOPort       PWM           0        PWM             (Out)
+#    Y Step           5        8     IOPort       StepGen       1        Step/Table1     (Out)
+#    Z Direction      6        9     IOPort       StepGen       2        Dir/Table2      (Out)
+#    Z Step           7       10     IOPort       StepGen       2        Step/Table1     (Out)
+#    A Direction      8       11     IOPort       StepGen       3        Dir/Table2      (Out)
+#    A Step           9       12     IOPort       StepGen       3        Step/Table1     (Out)
+#    X Limit         10       13     IOPort       None                                   (In)
+#    Y Limit         11       14     IOPort       None                                   (In)
+#    Z Limit         12       15     IOPort       Encoder       1        S3SBOB feedback (In)
+#    Probe In        13       16     IOPort       Encoder 0 for rapidturn, disabled in this HAL) (In)
+#Note for these last two IOPorts: HALs can ignore the Encoder 2ndary function and use as GPIO
+
+########################################################################
+# DPLL configuration
+setp hm2_[HOSTMOT2](BOARD).0.dpll.01.timer-us [HOSTMOT2](DPLL_TIMER_US)
+
+# default is -1 which means don't use the DPLL timer and simply sample on read()
+# set to 1 for Ethernet boards to use DPLL timer 1 and sample 100 micro seconds
+# before the nominal servo thread read() time
+setp hm2_[HOSTMOT2](BOARD).0.stepgen.timer-number  [HOSTMOT2](DPLL_TIMER_NUMBER)
+
+# the mills have one encoders enabled for series 3 servo board
+# [HOSTMOT2] DRIVER_PARAMS="config= num_encoders=0 num_pwmgens=1 num_3pwmgens=0 num_stepgens=5 "
+# -- this is a reminder for if they get added
+# if there are no encoders the encoder.timer-number pin does not exist and this line will be a fatal start up error
+setp hm2_[HOSTMOT2](BOARD).0.encoder.timer-number  [HOSTMOT2](DPLL_TIMER_NUMBER)
+
+# Likewise, there's also this line for stepgen in the mesa_rapidturn HAL.  Do we need it here (or there??)
+setp hm2_[HOSTMOT2](BOARD).0.stepgen.timer-number  [HOSTMOT2](DPLL_TIMER_NUMBER)
+
+# no-connect for 5i25 - needed by postgui/UI
+newsig z-axis-brake-release bit
+
+########################################################################
+# Spindle speed control
+#
+# stepgen outputs the frequency it is told by tormachspindle comp
+
+# type 1 velocity control mode
+setp hm2_[HOSTMOT2](BOARD).0.stepgen.04.control-type 1
+
+# step/dir
+# type 2 quadrature output for 50% duty cycle
+setp hm2_[HOSTMOT2](BOARD).0.stepgen.04.step_type 2
+
+# no scaling 1:1
+setp hm2_[HOSTMOT2](BOARD).0.stepgen.04.position-scale 1.0
+
+# handle spindle at speed via separate component
+setp hm2_[HOSTMOT2](BOARD).0.stepgen.04.maxaccel 0
+
+# stepspace in nanoseconds
+setp hm2_[HOSTMOT2](BOARD).0.stepgen.04.stepspace 0
+
+# steplen in nanoseconds (10 microseconds)
+setp hm2_[HOSTMOT2](BOARD).0.stepgen.04.steplen 10000
+
+# assume standard spindle until UI sets it
+setp tormachspindle.spindle-type 0
+
+# hispeed spindle min/max
+setp tormachspindle.hispeed-min 1000
+setp tormachspindle.hispeed-max 24000
+
+# allow UI to access min/max for high speed spindle
+# do not net these until the UI code is changed to set them explicitly
+# or the setp command above will not stick and they will be set to 0
+net spindle-hispeed-min      tormachspindle.hispeed-min
+net spindle-hispeed-max      tormachspindle.hispeed-max
+
+# these let the UI read the min/max maintained by the comp based on spindle type
+net spindle-min-speed        tormachspindle.min-speed
+net spindle-max-speed        tormachspindle.max-speed
+
+# the UI sets the spindle type
+net spindle-type             tormachspindle.spindle-type
+
+# assume high range until UI sets it
+setp tormachspindle.belt-position 1
+net spindle-range            tormachspindle.belt-position
+net spindle-range-alarm      tormachspindle.speed-alarm
+
+setp tormachspindle.lowbelt-min-rpm  [SPINDLE]LO_RANGE_MIN
+setp tormachspindle.lowbelt-max-rpm  [SPINDLE]LO_RANGE_MAX
+setp tormachspindle.lowbelt-ratio [SPINDLE]LO_RANGE_PULLEY_RATIO
+
+setp tormachspindle.highbelt-min-rpm [SPINDLE]HI_RANGE_MIN
+setp tormachspindle.highbelt-max-rpm [SPINDLE]HI_RANGE_MAX
+setp tormachspindle.highbelt-ratio [SPINDLE]HI_RANGE_PULLEY_RATIO
+
+# frequencies sent to stepgen to achieve low belt speeds
+#   500 Hz ->   6 Hz at VFD ->   175 RPM at spindle (770)
+# 10900 Hz -> 120 Hz at VFD ->  3250 RPM at spindle (770)
+#   500 Hz ->   6 Hz at VFD ->   100 RPM at spindle (1100-2-3)
+# 10900 Hz -> 120 Hz at VFD ->  2000 RPM at spindle (1100-2-3)
+#  1600 Hz ->                    300 RPM at spindle (1100-1)
+# 10900 Hz ->                   1750 RPM at spindle (1100-1)
+setp tormachspindle.lowbelt-min-mcb-freq [SPINDLE]MIN_MCB_FREQUENCY
+setp tormachspindle.lowbelt-max-mcb-freq [SPINDLE]MAX_MCB_FREQUENCY
+
+# frequencies sent to stepgen to achieve high belt speeds
+#   500 Hz ->   6 Hz at VFD ->   525 RPM at spindle (770)
+# 10900 Hz -> 120 Hz at VFD -> 10200 RPM at spindle (770)
+#   500 Hz ->   6 Hz at VFD ->   250 RPM at spindle (1100-2-3)
+# 10900 Hz -> 120 Hz at VFD ->  5140 RPM at spindle (1100-2-3)
+#  1600 Hz ->                    800 RPM at spindle (1100-1)
+# 10900 Hz ->                   4500 RPM at spindle (1100-1)
+setp tormachspindle.highbelt-min-mcb-freq [SPINDLE]MIN_MCB_FREQUENCY
+setp tormachspindle.highbelt-max-mcb-freq [SPINDLE]MAX_MCB_FREQUENCY
+
+# speed-out is displayed by UI when program running
+net spindle-speed-fb-rpm     tormachspindle.speed-out
+
+# connect motion speed-out to input of spindle comp
+net spindle-speed-raw        motion.spindle-speed-out    tormachspindle.speed-in
+
+# connect output of spindle comp to stepgen
+net spindle-speed            tormachspindle.mcb-freq-out hm2_[HOSTMOT2](BOARD).0.stepgen.04.velocity-cmd
+
+# spindle at speed parameters for tormachspindle component
+setp tormachspindle.startup-delay     [SPINDLE]STARTUP_DELAY
+
+# time to reach max speed from stopped
+setp tormachspindle.seconds-to-max-rpm [SPINDLE]SECONDS_TO_MAX_RPM
+
+# connect spindle comp at-speed output to motion
+net spindle-at-speed  tormachspindle.at-speed  motion.spindle-at-speed
+
+# motion.spindle-speed-in is necessary for G95 f/rev
+net spindle-velocity-fb-rps  tormachspindle.speed-out-rps  motion.spindle-speed-in
+
+# connect motion spindle enable to stepgen enable and spindle comp
+net spindle-on        motion.spindle-on        hm2_[HOSTMOT2](BOARD).0.stepgen.04.enable    tormachspindle.spindle-on
+
+# spindle direction
+# P3 pin 16 gpio 005
+setp hm2_[HOSTMOT2](BOARD).0.gpio.005.is_output 1
+net spindle-cw motion.spindle-forward => hm2_[HOSTMOT2](BOARD).0.gpio.005.out
+
+# UI access to stop spindle while in feedhold / INTERP_PAUSED
+net spindle-disable tormachspindle.disable
+
+# max RPM when enclosure door open
+net enc-door-open-max-rpm tormachspindle.enc-door-open-max-rpm
+
+# ATC uses this pin for BT30 configs -- this is a stub
+newsig orient-status float
+sets   orient-status 0
+
+########################################################################
+# Z axis brake release
+#
+# gpio 024
+#
+setp hm2_[HOSTMOT2](BOARD).0.gpio.024.out           0
+setp hm2_[HOSTMOT2](BOARD).0.gpio.024.invert_output 1
+setp hm2_[HOSTMOT2](BOARD).0.gpio.024.is_output     1
+
+# Z axis brake is controlled by home2hstop comp
+net z-axis-brake-release z-home2hstop.brake-release hm2_[HOSTMOT2](BOARD).0.gpio.024.out
+
+########################################################################
+# Coolant
+# P3 pin 14 gpio 001
+
+setp hm2_[HOSTMOT2](BOARD).0.gpio.001.is_output        1
+setp hm2_[HOSTMOT2](BOARD).0.gpio.001.is_opendrain     0
+net coolant-flood    hm2_[HOSTMOT2](BOARD).0.gpio.001.out
+
+# Common coolant pins / signals (pass through GUI hal pins in postgui config)
+net coolant-flood-io iocontrol.0.coolant-flood
+net coolant-mist-io  iocontrol.0.coolant-mist
+
+########################################################################
+# Charge pump
+# pin set by 5i25 configuration
+# P3 pin 17 gpio 007
+# dc = (value/scale)
+
+setp hm2_[HOSTMOT2](BOARD).0.pwmgen.00.output-type 1
+setp hm2_[HOSTMOT2](BOARD).0.pwmgen.pwm_frequency 500
+setp hm2_[HOSTMOT2](BOARD).0.pwmgen.00.scale 100
+setp hm2_[HOSTMOT2](BOARD).0.pwmgen.00.value 5
+
+########################################################################
+# E stop
+# P3 pin 15 gpio 003
+
+# estop noise debounce
+# use this line with a machine attached
+net machine-ok-raw <= hm2_[HOSTMOT2](BOARD).0.gpio.003.in_not => debounce.0.3.in
+
+# use the setp line below without a machine attached
+# this isn't useful unless a properly flashed 5i25 is present
+# no machine attached
+#setp debounce.0.3.in 1
+
+net machine-ok debounce.0.3.out => estop-latch.0.ok-in
+
+net not-estop-signal estop-latch.0.ok-out => iocontrol.0.emc-enable-in  => hm2_[HOSTMOT2](BOARD).0.pwmgen.00.enable motion.enable
+net not-estop-signal not-estop.in
+net estop not-estop.out
+net estop zbotatc.estop
+net estop-reset iocontrol.0.user-request-enable => estop-latch.0.reset
+net estop-out <= iocontrol.0.user-enable-out
+
+########################################################################
+# Probe
+# P3 pin 13 gpio 016
+net probe-in  hm2_[HOSTMOT2](BOARD).0.gpio.016.in debounce.0.4.in
+
+net probe-active-high probe-active-hi-lo.in0
+net probe-debounced   debounce.0.4.out       probe-active-hi-lo.in1
+
+# connect 4th axis home input directly to debounced accessory input
+net probe-debounced   axis.3.home-sw-in
+
+# probe active hi-low output signal to AND input with probe-enable signal
+net probe-hi-lo       probe-active-hi-lo.out probe-enable-input.in1
+
+# do this to only disable the probe input during 4th axis homing
+net ax3-is-homing     axis.3.homing          axis3-not-homing.in
+net ax3-not-homing    axis3-not-homing.out   probe-enable-input.in0
+
+net probe-input       probe-enable-input.out motion.probe-input
+net probe-ready       motion.probe-ready
+
+########################################################################
+# Fake probe 2 as it has to exist for postgui
+net    probe2-debounced  fake-probe2.out
+
+##################################################
+#X axis enable for 7i85s:
+setp hm2_[HOSTMOT2](BOARD).0.gpio.025.out           0
+setp hm2_[HOSTMOT2](BOARD).0.gpio.025.invert_output 1
+setp hm2_[HOSTMOT2](BOARD).0.gpio.025.is_output     1
+# connected to the X axis ClearPath Motor enable below
+
+#Y axis enable for 7i85s:
+setp hm2_[HOSTMOT2](BOARD).0.gpio.026.out           0
+setp hm2_[HOSTMOT2](BOARD).0.gpio.026.invert_output 1
+setp hm2_[HOSTMOT2](BOARD).0.gpio.026.is_output     1
+# connected to the Y axis ClearPath Motor enable below
+
+#Z axis enable for 7i85s:
+setp hm2_[HOSTMOT2](BOARD).0.gpio.023.out           0
+setp hm2_[HOSTMOT2](BOARD).0.gpio.023.invert_output 1
+setp hm2_[HOSTMOT2](BOARD).0.gpio.023.is_output     1
+# connected to the Z axis ClearPath Motor enable below
+
+########################################################################
+# X axis
+# step/dir
+
+net x_hlfb_raw hm2_[HOSTMOT2](BOARD).0.encoder.02.input-a debounce.1.0.in
+net x_hlfb debounce.1.0.out x-home2hstop.hlfb
+
+# drive fault to amp-fault-in
+net x_fault x-home2hstop.motor-fault axis.0.amp-fault-in
+
+setp hm2_[HOSTMOT2](BOARD).0.stepgen.00.step_type 0
+# velocity control
+setp hm2_[HOSTMOT2](BOARD).0.stepgen.00.control-type 1
+
+# scaling for position feedback, position command, and velocity command, in steps per length unit.
+# converts from counts to position units. position = counts / position_scale
+setp hm2_[HOSTMOT2](BOARD).0.stepgen.00.position-scale [AXIS_0]SCALE
+# create alias to be able to change the stepgen scale by axis name
+alias param hm2_[HOSTMOT2](BOARD).0.stepgen.00.position-scale   x_axis_scale
+
+# stepper driver timing parameters
+setp hm2_[HOSTMOT2](BOARD).0.stepgen.00.steplen [AXIS_0]STEPLEN
+setp hm2_[HOSTMOT2](BOARD).0.stepgen.00.stepspace [AXIS_0]STEPSPACE
+setp hm2_[HOSTMOT2](BOARD).0.stepgen.00.dirhold [AXIS_0]DIRHOLD
+setp hm2_[HOSTMOT2](BOARD).0.stepgen.00.dirsetup [AXIS_0]DIRSETUP
+
+setp hm2_[HOSTMOT2](BOARD).0.stepgen.00.maxvel [AXIS_0]STEPGEN_MAX_VEL
+setp hm2_[HOSTMOT2](BOARD).0.stepgen.00.maxaccel [AXIS_0]STEPGEN_MAXACCEL
+
+# X axis CPM enable chain
+net x-motor-enable-out  x-home2hstop.motor-enable-out hm2_[HOSTMOT2](BOARD).0.gpio.025.out
+net x-motor-state   x-home2hstop.motor-state
+net x-motor-command x-home2hstop.motor-command
+
+newsig emcmot.00.enable bit
+sets emcmot.00.enable FALSE
+
+net emcmot.00.enable <= axis.0.amp-enable-out
+net emcmot.00.enable => hm2_[HOSTMOT2](BOARD).0.stepgen.00.enable pid.0.enable
+
+# position command and feedback
+net emcmot.00.pos-cmd axis.0.motor-pos-cmd => pid.0.command
+net emcmot.00.vel-cmd axis.0.joint-vel-cmd => pid.0.command-deriv
+net emcmot.00.pos-fb <= hm2_[HOSTMOT2](BOARD).0.stepgen.00.position-fb axis.0.motor-pos-fb pid.0.feedback
+net emcmot.00.command pid.0.output hm2_[HOSTMOT2](BOARD).0.stepgen.00.velocity-cmd
+setp pid.0.error-previous-target true
+
+# PID parameters
+setp pid.0.Pgain [AXIS_0]P
+setp pid.0.Igain [AXIS_0]I
+setp pid.0.Dgain [AXIS_0]D
+setp pid.0.bias [AXIS_0]BIAS
+setp pid.0.FF0 [AXIS_0]FF0
+setp pid.0.FF1 [AXIS_0]FF1
+setp pid.0.FF2 [AXIS_0]FF2
+setp pid.0.deadband [AXIS_0]DEADBAND
+setp pid.0.maxoutput [AXIS_0]MAX_OUTPUT
+setp pid.0.maxerror [AXIS_0]MAX_ERROR
+
+# P3 pin 3 gpio 004
+# X step
+setp hm2_[HOSTMOT2](BOARD).0.gpio.004.invert_output 1
+
+########################################################################
+# Y axis
+# step/dir
+
+net y_hlfb_raw hm2_[HOSTMOT2](BOARD).0.encoder.02.input-b debounce.1.1.in
+net y_hlfb debounce.1.1.out y-home2hstop.hlfb
+
+# drive fault to amp-fault-in
+net y_fault y-home2hstop.motor-fault axis.1.amp-fault-in
+
+setp hm2_[HOSTMOT2](BOARD).0.stepgen.01.step_type 0
+# velocity control
+setp hm2_[HOSTMOT2](BOARD).0.stepgen.01.control-type 1
+
+# scaling for position feedback, position command, and velocity command, in steps per length unit.
+# converts from counts to position units. position = counts / position_scale
+setp hm2_[HOSTMOT2](BOARD).0.stepgen.01.position-scale [AXIS_1]SCALE
+# create alias to be able to change the stepgen scale by axis name
+alias param hm2_[HOSTMOT2](BOARD).0.stepgen.01.position-scale   y_axis_scale
+
+# stepper driver timing parameters
+setp hm2_[HOSTMOT2](BOARD).0.stepgen.01.steplen [AXIS_1]STEPLEN
+setp hm2_[HOSTMOT2](BOARD).0.stepgen.01.stepspace [AXIS_1]STEPSPACE
+setp hm2_[HOSTMOT2](BOARD).0.stepgen.01.dirhold [AXIS_1]DIRHOLD
+setp hm2_[HOSTMOT2](BOARD).0.stepgen.01.dirsetup [AXIS_1]DIRSETUP
+
+setp hm2_[HOSTMOT2](BOARD).0.stepgen.01.maxvel [AXIS_1]STEPGEN_MAX_VEL
+setp hm2_[HOSTMOT2](BOARD).0.stepgen.01.maxaccel [AXIS_1]STEPGEN_MAXACCEL
+
+# Y axis CPM enable chain
+net y-motor-enable-out y-home2hstop.motor-enable-out hm2_[HOSTMOT2](BOARD).0.gpio.026.out
+net y-motor-state y-home2hstop.motor-state
+net y-motor-command y-home2hstop.motor-command
+
+newsig emcmot.01.enable bit
+sets emcmot.01.enable FALSE
+
+net emcmot.01.enable <= axis.1.amp-enable-out
+net emcmot.01.enable => hm2_[HOSTMOT2](BOARD).0.stepgen.01.enable pid.1.enable
+
+# position command and feedback
+net emcmot.01.pos-cmd axis.1.motor-pos-cmd => pid.1.command
+net emcmot.01.vel-cmd axis.1.joint-vel-cmd => pid.1.command-deriv
+net emcmot.01.pos-fb <= hm2_[HOSTMOT2](BOARD).0.stepgen.01.position-fb axis.1.motor-pos-fb pid.1.feedback
+net emcmot.01.command pid.1.output hm2_[HOSTMOT2](BOARD).0.stepgen.01.velocity-cmd
+setp pid.1.error-previous-target true
+
+# PID parameters
+setp pid.1.Pgain [AXIS_1]P
+setp pid.1.Igain [AXIS_1]I
+setp pid.1.Dgain [AXIS_1]D
+setp pid.1.bias [AXIS_1]BIAS
+setp pid.1.FF0 [AXIS_1]FF0
+setp pid.1.FF1 [AXIS_1]FF1
+setp pid.1.FF2 [AXIS_1]FF2
+setp pid.1.deadband [AXIS_1]DEADBAND
+setp pid.1.maxoutput [AXIS_1]MAX_OUTPUT
+setp pid.1.maxerror [AXIS_1]MAX_ERROR
+
+# P3 pin 5 gpio 008
+# Y step
+setp hm2_[HOSTMOT2](BOARD).0.gpio.008.invert_output 1
+
+########################################################################
+# Z axis
+# step/dir
+
+net z_fault_not hm2_[HOSTMOT2](BOARD).0.encoder.02.input-index z-fault-not.in
+net z_hlfb_raw z-fault-not.out debounce.1.2.in
+net z_hlfb debounce.1.2.out z-home2hstop.hlfb
+
+# drive fault to amp-fault-in
+net z_fault z-home2hstop.motor-fault axis.2.amp-fault-in
+
+setp hm2_[HOSTMOT2](BOARD).0.stepgen.02.step_type 0
+# velocity control
+setp hm2_[HOSTMOT2](BOARD).0.stepgen.02.control-type 1
+
+# scaling for position feedback, position command, and velocity command, in steps per length unit.
+# converts from counts to position units. position = counts / position_scale
+setp hm2_[HOSTMOT2](BOARD).0.stepgen.02.position-scale [AXIS_2]SCALE
+# create alias to be able to change the stepgen scale by axis name
+alias param hm2_[HOSTMOT2](BOARD).0.stepgen.02.position-scale   z_axis_scale
+
+# stepper driver timing parameters
+setp hm2_[HOSTMOT2](BOARD).0.stepgen.02.steplen [AXIS_2]STEPLEN
+setp hm2_[HOSTMOT2](BOARD).0.stepgen.02.stepspace [AXIS_2]STEPSPACE
+setp hm2_[HOSTMOT2](BOARD).0.stepgen.02.dirhold [AXIS_2]DIRHOLD
+setp hm2_[HOSTMOT2](BOARD).0.stepgen.02.dirsetup [AXIS_2]DIRSETUP
+
+setp hm2_[HOSTMOT2](BOARD).0.stepgen.02.maxvel [AXIS_2]STEPGEN_MAX_VEL
+setp hm2_[HOSTMOT2](BOARD).0.stepgen.02.maxaccel [AXIS_2]STEPGEN_MAXACCEL
+
+# Z axis CPM enable chain
+net z-motor-enable-out   z-home2hstop.motor-enable-out  hm2_[HOSTMOT2](BOARD).0.gpio.023.out
+net z-motor-state        z-home2hstop.motor-state
+net z-motor-command      z-home2hstop.motor-command
+
+newsig emcmot.02.enable bit
+sets emcmot.02.enable FALSE
+
+net emcmot.02.enable <= axis.2.amp-enable-out
+net emcmot.02.enable => hm2_[HOSTMOT2](BOARD).0.stepgen.02.enable pid.2.enable
+
+# position command and feedback
+net emcmot.02.pos-cmd axis.2.motor-pos-cmd => pid.2.command
+net emcmot.02.vel-cmd axis.2.joint-vel-cmd => pid.2.command-deriv
+net emcmot.02.pos-fb <= hm2_[HOSTMOT2](BOARD).0.stepgen.02.position-fb axis.2.motor-pos-fb pid.2.feedback
+net emcmot.02.command pid.2.output hm2_[HOSTMOT2](BOARD).0.stepgen.02.velocity-cmd
+setp pid.2.error-previous-target true
+
+# PID parameters
+setp pid.2.Pgain [AXIS_2]P
+setp pid.2.Igain [AXIS_2]I
+setp pid.2.Dgain [AXIS_2]D
+setp pid.2.bias [AXIS_2]BIAS
+setp pid.2.FF0 [AXIS_2]FF0
+setp pid.2.FF1 [AXIS_2]FF1
+setp pid.2.FF2 [AXIS_2]FF2
+setp pid.2.deadband [AXIS_2]DEADBAND
+setp pid.2.maxoutput [AXIS_2]MAX_OUTPUT
+setp pid.2.maxerror [AXIS_2]MAX_ERROR
+
+# P3 pin 7 gpio 010
+# Z step
+setp hm2_[HOSTMOT2](BOARD).0.gpio.010.invert_output 1
+
+########################################################################
+# A axis
+# step/dir
+setp hm2_[HOSTMOT2](BOARD).0.stepgen.03.step_type 0
+# velocity control
+setp hm2_[HOSTMOT2](BOARD).0.stepgen.03.control-type 1
+
+# scaling for position feedback, position command, and velocity command, in steps per length unit.
+# converts from counts to position units. position = counts / position_scale
+setp hm2_[HOSTMOT2](BOARD).0.stepgen.03.position-scale [AXIS_3]SCALE
+
+# stepper driver timing parameters
+setp hm2_[HOSTMOT2](BOARD).0.stepgen.03.steplen [AXIS_3]STEPLEN
+setp hm2_[HOSTMOT2](BOARD).0.stepgen.03.stepspace [AXIS_3]STEPSPACE
+setp hm2_[HOSTMOT2](BOARD).0.stepgen.03.dirhold [AXIS_3]DIRHOLD
+setp hm2_[HOSTMOT2](BOARD).0.stepgen.03.dirsetup [AXIS_3]DIRSETUP
+
+setp hm2_[HOSTMOT2](BOARD).0.stepgen.03.maxvel [AXIS_3]STEPGEN_MAX_VEL
+setp hm2_[HOSTMOT2](BOARD).0.stepgen.03.maxaccel [AXIS_3]STEPGEN_MAXACCEL
+
+# axis enable chain
+newsig emcmot.03.enable bit
+sets emcmot.03.enable FALSE
+
+net emcmot.03.enable <= axis.3.amp-enable-out
+net emcmot.03.enable => hm2_[HOSTMOT2](BOARD).0.stepgen.03.enable pid.3.enable
+
+# position command and feedback
+net emcmot.03.pos-cmd axis.3.motor-pos-cmd => pid.3.command
+net emcmot.03.vel-cmd axis.3.joint-vel-cmd => pid.3.command-deriv
+net emcmot.03.pos-fb <= hm2_[HOSTMOT2](BOARD).0.stepgen.03.position-fb axis.3.motor-pos-fb pid.3.feedback
+net emcmot.03.command pid.3.output hm2_[HOSTMOT2](BOARD).0.stepgen.03.velocity-cmd
+setp pid.3.error-previous-target true
+
+# PID parameters
+setp pid.3.Pgain [AXIS_3]P
+setp pid.3.Igain [AXIS_3]I
+setp pid.3.Dgain [AXIS_3]D
+setp pid.3.bias [AXIS_3]BIAS
+setp pid.3.FF0 [AXIS_3]FF0
+setp pid.3.FF1 [AXIS_3]FF1
+setp pid.3.FF2 [AXIS_3]FF2
+setp pid.3.deadband [AXIS_3]DEADBAND
+setp pid.3.maxoutput [AXIS_3]MAX_OUTPUT
+setp pid.3.maxerror [AXIS_3]MAX_ERROR
+
+# P3 pin 9 gpio 012
+# A step
+setp hm2_[HOSTMOT2](BOARD).0.gpio.012.invert_output 1
+
+########################################################################
+# home switches
+
+# enclosure door support
+#   door-sw-installed post-gui HAL pin changes HAL routing of signals
+#     x-axis 5i25 limit input becomes door switch input
+#     x-axis switch gets rewired in series with y switch
+#
+#  door-sw-in is an input pin to the spindle comp
+#    when TRUE  the spindle comp limits RPM to a slow value, e.g. 1000 RPM
+#    when FALSE the spindle comp does not limit spindle RPM
+#
+
+# Allow GUI to see Limit Switches even though they're not used anymore TODO: Check that this is in fact used
+net home-limit-y-raw <= hm2_[HOSTMOT2](BOARD).0.gpio.014.in
+net home-limit-z-raw <= hm2_[HOSTMOT2](BOARD).0.gpio.015.in
+
+#fake switch closures
+setp debounce.0.0.in 0
+setp debounce.0.1.in 0
+setp debounce.0.2.in 0
+
+# route limit inputs through AND gates to enable switches via UI
+net x-lim-2index   debounce.0.0.out          x-home2hstop.limit-in
+net y-lim-2index   debounce.0.1.out          y-home2hstop.limit-in
+net z-lim-2index   debounce.0.2.out          z-home2hstop.limit-in
+
+# post gui connects this to the UI for disabling the limit switch inputs
+net limit-switch-enable  x-home2hstop.limit-enable    y-home2hstop.limit-enable   z-home2hstop.limit-enable
+
+## connect limit out to axis.0|1|2.*-lim-sw-in
+net x-lim-out    x-home2hstop.limit-out    axis.0.home-sw-in axis.0.neg-lim-sw-in axis.0.pos-lim-sw-in
+net y-lim-out    y-home2hstop.limit-out    axis.1.home-sw-in axis.1.neg-lim-sw-in axis.1.pos-lim-sw-in
+net z-lim-out    z-home2hstop.limit-out    axis.2.home-sw-in axis.2.neg-lim-sw-in axis.2.pos-lim-sw-in
+
+net x-home-state  x-home2hstop.home-state axis.0.home-state
+net y-home-state  y-home2hstop.home-state axis.1.home-state
+net z-home-state  z-home2hstop.home-state axis.2.home-state
+
+net x-joint-pos-fb  x-home2hstop.joint-pos-fb axis.0.joint-pos-fb
+net y-joint-pos-fb  y-home2hstop.joint-pos-fb axis.1.joint-pos-fb
+net z-joint-pos-fb  z-home2hstop.joint-pos-fb axis.2.joint-pos-fb
+
+# velocity used in comp for direction
+setp x-home2hstop.latch-vel [AXIS_0](HOME_LATCH_VEL)
+setp y-home2hstop.latch-vel [AXIS_1](HOME_LATCH_VEL)
+setp z-home2hstop.latch-vel [AXIS_2](HOME_LATCH_VEL)
+
+# nodes for postgui
+net x-status-code        x-home2hstop.status-code
+net y-status-code        y-home2hstop.status-code
+net z-status-code        z-home2hstop.status-code
+
+net x-home-state-out x-home2hstop.home-state-out
+net y-home-state-out y-home2hstop.home-state-out
+net z-home-state-out z-home2hstop.home-state-out
+
+# debounce the door open sensor input (technically X axis limit input)
+net raw-enc-door-open-status hm2_[HOSTMOT2](BOARD).0.gpio.013.in => debounce.0.5.in
+
+# gate input through AND with UI postgui pin 'enc-door-switch-enabled'
+# UI can control if the door switch is enabled
+net enc-door-switch-enabled  door-limit-in.in0   tormachspindle.enc-door-switch-configured
+net enc-door-debounced debounce.0.5.out door-limit-in.in1
+
+# UI can display this
+net enc-door-open-status    door-limit-in.out   tormachspindle.enc-door-switch-status
+
+# Enforce door-open spindle speed restrictions
+net enc-door-open-max-rpm motion.spindle-restrict-request-rpm
+net enc-door-open-status motion.spindle-restrict-request
+
+# S3 and earlier mills do not have door locks
+# Postgui expects these two signals to exist in order to wire them up
+# For simplicity in the later UI, we create a fake door lock component using an and2 comp.
+# It loop backs whatever the UI comands it to do with the drive signal as the locked status.
+
+setp fake-door-lock.in0 1
+net enc-door-lock-drive fake-door-lock.in1
+net enc-door-locked-status fake-door-lock.out
+
+#
+# tool change
+#
+
+# loopback tool-change to tool-changed
+net tool-change iocontrol.0.tool-change => iocontrol.0.tool-changed
+
+# loopback prepare to prepared
+net tool-prepare-loopback iocontrol.0.tool-prepare => iocontrol.0.tool-prepared
+
+#######################################################################
+# IO Board  - pins for up to 4 devices - hardware device id sets pin range
+#                                        Set with rotary dial on board
+#######################################################################
+
+net dig-out-0 motion.digital-out-00 => usbio.relay-0
+net dig-out-1 motion.digital-out-01 => usbio.relay-1
+net dig-out-2 motion.digital-out-02 => usbio.relay-2
+net dig-out-3 motion.digital-out-03 => usbio.relay-3
+net dig-out-4 motion.digital-out-04 => usbio.relay-4
+net dig-out-5 motion.digital-out-05 => usbio.relay-5
+net dig-out-6 motion.digital-out-06 => usbio.relay-6
+net dig-out-7 motion.digital-out-07 => usbio.relay-7
+net dig-out-8 motion.digital-out-08 => usbio.relay-8
+net dig-out-9 motion.digital-out-09 => usbio.relay-9
+net dig-out-10 motion.digital-out-10 => usbio.relay-10
+net dig-out-11 motion.digital-out-11 => usbio.relay-11
+net dig-out-12 motion.digital-out-12 => usbio.relay-12
+net dig-out-13 motion.digital-out-13 => usbio.relay-13
+net dig-out-14 motion.digital-out-14 => usbio.relay-14
+net dig-out-15 motion.digital-out-15 => usbio.relay-15
+
+net dig-in-0 motion.digital-in-00 => usbio.input-0
+net dig-in-1 motion.digital-in-01 => usbio.input-1
+net dig-in-2 motion.digital-in-02 => usbio.input-2
+net dig-in-3 motion.digital-in-03 => usbio.input-3
+net dig-in-4 motion.digital-in-04 => usbio.input-4
+net dig-in-5 motion.digital-in-05 => usbio.input-5
+net dig-in-6 motion.digital-in-06 => usbio.input-6
+net dig-in-7 motion.digital-in-07 => usbio.input-7
+net dig-in-8 motion.digital-in-08 => usbio.input-8
+net dig-in-9 motion.digital-in-09 => usbio.input-9
+net dig-in-10 motion.digital-in-10 => usbio.input-10
+net dig-in-11 motion.digital-in-11 => usbio.input-11
+net dig-in-12 motion.digital-in-12 => usbio.input-12
+net dig-in-13 motion.digital-in-13 => usbio.input-13
+net dig-in-14 motion.digital-in-14 => usbio.input-14
+net dig-in-15 motion.digital-in-15 => usbio.input-15
+
+# Dummy signal to make it easier for single postgui to deal with
+# non-m200 spindle vfd machines.
+newsig vfd-running float
+sets vfd-running 0
+
+newsig machine-mode bit
+sets machine-mode 0
+
+#####################################################################
+# Spindle data for tapping cycles
+
+net spindle-drive-ratio tormachspindle.spindle-pulley-ratio
+net spindle-max-acceleration-rps2 motion.spindle-max-acceleration-rps2 tormachspindle.spindle-max-acceleration-rps
+setp tormachspindle.vfd-max-acceleration-rps [TORMACH_SPINDLE]SPINDLE_VFD_PEAK_ACCEL_RPS2
+setp motion.spindle-cmd-latency-sec [TORMACH_SPINDLE]SPINDLE_CMD_LATENCY_SEC
