@@ -37,7 +37,7 @@ class PathPirate:
     def __init__(self):
         # set up the main window
         self.main = tk.Tk()
-        self.main.title("PathPirate Configurator v1.12 for Tormach's PathPilot v2.9.2 - v2.14.0")
+        self.main.title("PathPirate Configurator v1.13 for Tormach's PathPilot v2.9.2 - v2.14.0")
         self.versionList = ['v2.9.2', 'v2.9.3', 'v2.9.4', 'v2.9.5', 'v2.9.6',
                             'v2.10.0', 'v2.10.1',
                             'v2.12.0', 'v2.12.1', 'v2.12.2', 'v2.12.3', 'v2.12.5',
@@ -250,6 +250,8 @@ class PathPirate:
                     text = text.replace('lcnc_apply_function=lambda value: self.command.maxvel(value * self.maxvel_lin / 100, value * self.maxvel_ang / 100)),', \
                     'lcnc_apply_function=lambda value: self.command.rapidrate(value / 100)), #Changed by PathPirate')
                 elif modFile == self.uiLathe:
+                    text = text.replace('self.maxvel_lin = math.sqrt(inch_per_second * 2)', \
+                                        'self.maxvel_lin = math.sqrt(2 * inch_per_second**2)')
                     text = text.replace('self.apply_newest_override_slider_values(force = True)', \
                     'self.apply_newest_override_slider_values(force = True)\n' \
                     '            self.command.maxvel(self.maxvel_lin, self.maxvel_ang) #Changed by PathPirate')
