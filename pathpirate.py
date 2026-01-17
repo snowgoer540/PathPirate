@@ -2,7 +2,7 @@
 pathpirate is a script that provides automated configuration changes to
 Tormach's PathPilot.
 
-Copyright (C) 2023, 2024, 2025 Gregory D Carl
+Copyright (C) 2023, 2024, 2025, 2026 Gregory D Carl
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -37,7 +37,7 @@ class PathPirate:
     def __init__(self):
         # set up the main window
         self.main = tk.Tk()
-        self.main.title("PathPirate Configurator v1.11 for Tormach's PathPilot v2.9.2 - v2.14.0")
+        self.main.title("PathPirate Configurator v1.12 for Tormach's PathPilot v2.9.2 - v2.14.0")
         self.versionList = ['v2.9.2', 'v2.9.3', 'v2.9.4', 'v2.9.5', 'v2.9.6',
                             'v2.10.0', 'v2.10.1',
                             'v2.12.0', 'v2.12.1', 'v2.12.2', 'v2.12.3', 'v2.12.5',
@@ -224,9 +224,9 @@ class PathPirate:
         missing = False
         change = False
         if self.minorVer == 9:
-            list = [self.uiCommon, self.consoleHal1, self.consoleHal2, self.tooltips, self.velImage, self.rapidImage]
+            list = [self.uiCommon, self.uiLathe, self.consoleHal1, self.consoleHal2, self.tooltips, self.velImage, self.rapidImage]
         else:
-            list = [self.uiCommon, self.consoleHal1, self.consoleHal2, self.tooltips, self.plasmaControls, self.latheControls, self.millControls]
+            list = [self.uiCommon, self.uiLathe, self.consoleHal1, self.consoleHal2, self.tooltips, self.plasmaControls, self.latheControls, self.millControls]
         for file in list:
             if not os.path.exists(file):
                 self.console.insert(tk.END, 'The following required file is missing: ', 'red')
@@ -236,7 +236,7 @@ class PathPirate:
             self.console.insert(tk.END, '\nAborting...\n', 'red')
             self.console.see(tk.END)
             return
-        for modFile in [self.uiCommon, self.consoleHal1, self.consoleHal2, self.tooltips]:
+        for modFile in [self.uiCommon, self.uiLathe, self.consoleHal1, self.consoleHal2, self.tooltips]:
             tempFile = '{}.bak'.format(modFile)
             if not os.path.exists(tempFile):
                 copy(modFile, tempFile)
@@ -249,6 +249,10 @@ class PathPirate:
                 if modFile == self.uiCommon:
                     text = text.replace('lcnc_apply_function=lambda value: self.command.maxvel(value * self.maxvel_lin / 100, value * self.maxvel_ang / 100)),', \
                     'lcnc_apply_function=lambda value: self.command.rapidrate(value / 100)), #Changed by PathPirate')
+                elif modFile == self.uiLathe:
+                    text = text.replace('self.apply_newest_override_slider_values(force = True)', \
+                    'self.apply_newest_override_slider_values(force = True)\n' \
+                    '            self.command.maxvel(self.maxvel_lin, self.maxvel_ang) #Changed by PathPirate')
                 elif modFile == self.tooltips:
                     text = text.replace('''
         "maxvel_override_100": {
@@ -261,7 +265,6 @@ class PathPirate:
             "longtext_id" : "msg_maxvel_override_tooltip",
             "long_width": 275
         },''', '')
-
                 else:
                     text = text.replace('setp tormach-console.0.rapid-override-scale 960', \
                     '#setp tormach-console.0.rapid-override-scale 960 #Changed by PathPirate')

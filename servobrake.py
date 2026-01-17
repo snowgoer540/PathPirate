@@ -36,7 +36,7 @@ class ServoBrake:
     def __init__(self):
         # set up the main window
         self.main = tk.Tk()
-        self.main.title("PathPirate Servo Brake Release Tool v1.11 for Tormach's PathPilot v2.9.2 - v2.14.0")
+        self.main.title("PathPirate Servo Brake Release Tool v1.12 for Tormach's PathPilot v2.9.2 - v2.14.0")
         self.versionList = ['v2.9.2', 'v2.9.3', 'v2.9.4', 'v2.9.5', 'v2.9.6',
                             'v2.10.0', 'v2.10.1',
                             'v2.12.0', 'v2.12.1', 'v2.12.2', 'v2.12.3', 'v2.12.5',
