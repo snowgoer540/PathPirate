@@ -37,10 +37,10 @@ class PathPirate:
     def __init__(self):
         # set up the main window
         self.main = tk.Tk()
-        self.main.title("PathPirate Configurator v1.14 for Tormach's PathPilot v2.9.2 - v2.14.2")
+        self.main.title("PathPirate Configurator v1.15 for Tormach's PathPilot v2.9.2 - v2.14.2")
         self.versionList = ['v2.9.2', 'v2.9.3', 'v2.9.4', 'v2.9.5', 'v2.9.6',
                             'v2.10.0', 'v2.10.1',
-                            'v2.12.0', 'v2.12.1', 'v2.12.2', 'v2.12.3', 'v2.12.5',
+                            'v2.12.0', 'v2.12.1', 'v2.12.2', 'v2.12.3', 'v2.12.4', 'v2.12.5',
                             'v2.13.0',
                             'v2.14.0', 'v2.14.1', 'v2.14.2']
         winWidth = 1000
@@ -224,11 +224,11 @@ class PathPirate:
         self.console.insert(tk.END, '\n---------------------------------------\nCONVERTING SLIDER FROM MAX VEL TO RAPID\n---------------------------------------\n', 'yellow')
         missing = False
         change = False
-        if self.minorVer == 9:
-            list = [self.uiCommon, self.uiLathe, self.consoleHal1, self.consoleHal2, self.tooltips, self.velImage, self.rapidImage]
+        if (self.majorVer, self.minorVer) == (2, 9):
+            file_list = [self.uiCommon, self.uiLathe, self.consoleHal1, self.consoleHal2, self.tooltips, self.velImage, self.rapidImage]
         else:
-            list = [self.uiCommon, self.uiLathe, self.consoleHal1, self.consoleHal2, self.tooltips, self.plasmaControls, self.latheControls, self.millControls]
-        for file in list:
+            file_list = [self.uiCommon, self.uiLathe, self.consoleHal1, self.consoleHal2, self.tooltips, self.plasmaControls, self.latheControls, self.millControls]
+        for file in file_list:
             if not os.path.exists(file):
                 self.console.insert(tk.END, 'The following required file is missing: ', 'red')
                 self.console.insert(tk.END, '{}\n'.format(file), 'pink')
@@ -251,11 +251,12 @@ class PathPirate:
                     text = text.replace('lcnc_apply_function=lambda value: self.command.maxvel(value * self.maxvel_lin / 100, value * self.maxvel_ang / 100)),', \
                     'lcnc_apply_function=lambda value: self.command.rapidrate(value / 100)), #Changed by PathPirate')
                 elif modFile == self.uiLathe:
-                    text = text.replace('self.maxvel_lin = math.sqrt(inch_per_second * 2)', \
-                                        'self.maxvel_lin = math.sqrt(2 * inch_per_second**2)')
-                    text = text.replace('self.apply_newest_override_slider_values(force = True)', \
-                    'self.apply_newest_override_slider_values(force = True)\n' \
-                    '            self.command.maxvel(self.maxvel_lin, self.maxvel_ang) #Changed by PathPirate')
+                    if (self.majorVer, self.minorVer, self.patchVer) <= (2, 14, 0):
+                        text = text.replace('self.maxvel_lin = math.sqrt(inch_per_second * 2)', \
+                                            'self.maxvel_lin = math.sqrt(2 * inch_per_second**2)')
+                        text = text.replace('self.apply_newest_override_slider_values(force = True)', \
+                        'self.apply_newest_override_slider_values(force = True)\n' \
+                        '            self.command.maxvel(self.maxvel_lin, self.maxvel_ang) #Changed by PathPirate')
                 elif modFile == self.tooltips:
                     text = text.replace('''
         "maxvel_override_100": {
@@ -277,7 +278,7 @@ class PathPirate:
                 self.console.insert(tk.END, 'The following file has been successfully modified: ')
                 self.console.insert(tk.END, '{}\n'.format(modFile), 'pink')
                 change = True
-        if self.minorVer == 9:
+        if (self.majorVer, self.minorVer) == (2, 9):
             with open (self.velImage, 'rb') as originalImage:
                 original = originalImage.read()
             with open (self.rapidImage, 'rb') as modImage:
@@ -397,7 +398,7 @@ class PathPirate:
             file.write(text)
             change = True
             self.console.insert(tk.END, 'The following file has been successfully modified: ')
-            self.console.insert(tk.END, '{}\n'.format(self.currentMillHal), 'pink')
+            self.console.insert(tk.END, '{}\n'.format(self.encoderHal), 'pink')
         with open(self.cm1100_1, 'r+') as file:
             text = file.read()
             if not 'PathPirate' in text:
@@ -467,7 +468,7 @@ class PathPirate:
                 pass
         #in PP v2.9.x, the Y axis servo was not polled for fault conditions. This fixes that.
         #Tormach has since fixed this for v2.10
-        if self.minorVer == 9:
+        if (self.majorVer, self.minorVer) == (2, 9):
             tempFile = '{}.bak'.format(self.uiLathe)
             if not os.path.exists(tempFile):
                 copy(self.uiLathe, tempFile)
@@ -612,7 +613,9 @@ class PathPirate:
             self.currentVersionInfo.insert(tk.END, 'ERROR: PathPirate is not compatible with version {}! Unable to proceed!\n'.format(self.currentVer), 'red')
             self.console.insert(tk.END, '\nThe following versions are currently supported: {}\n'.format(', '.join(self.versionList)), 'yellow')
             return
+        self.majorVer = int(self.currentVer.split('.')[0].lstrip('v'))
         self.minorVer = int(self.currentVer.split('.')[1])
+        self.patchVer = int(self.currentVer.split('.')[2].split('-')[0])
         self.currentVersionInfo.insert(tk.END, 'Current Version of PathPilot is: {}\n'.format(self.currentVer))
         self.versionFolder = 'v2.9.x' if self.currentVer in ['v2.9.2', 'v2.9.3', 'v2.9.4', 'v2.9.5', 'v2.9.6'] else self.currentVer
         machineFile = os.path.join(self.home, 'pathpilot.json')

@@ -2,7 +2,7 @@
 pathpirate is a script that provides automated configuration changes to
 Tormach's PathPilot.
 
-Copyright (C) 2023, 2024, 2025 Gregory D Carl
+Copyright (C) 2023, 2024, 2025, 2026 Gregory D Carl
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -36,10 +36,10 @@ class ServoBrake:
     def __init__(self):
         # set up the main window
         self.main = tk.Tk()
-        self.main.title("PathPirate Servo Brake Release Tool v1.14 for Tormach's PathPilot v2.9.2 - v2.14.2")
+        self.main.title("PathPirate Servo Brake Release Tool v1.15 for Tormach's PathPilot v2.9.2 - v2.14.2")
         self.versionList = ['v2.9.2', 'v2.9.3', 'v2.9.4', 'v2.9.5', 'v2.9.6',
                             'v2.10.0', 'v2.10.1',
-                            'v2.12.0', 'v2.12.1', 'v2.12.2', 'v2.12.3', 'v2.12.5',
+                            'v2.12.0', 'v2.12.1', 'v2.12.2', 'v2.12.3', 'v2.12.4', 'v2.12.5',
                             'v2.13.0',
                             'v2.14.0', 'v2.14.1', 'v2.14.2']
         win_width = 1000
@@ -253,7 +253,7 @@ class ServoBrake:
 
         self.exit_button['state'] = 'normal'
         self.engage_brake_button['state'] = 'disabled'
-        self.console.insert(tk.END, '\nDENERGIZING THE COIL TO ENGAGE THE BRAKE.........................', 'orange')
+        self.console.insert(tk.END, '\nDE-ENERGIZING THE COIL TO ENGAGE THE BRAKE.........................', 'orange')
         out, err = self.send_commands(self.halcmd, 'setp', 'hm2_{}.0.gpio.{}.out'.format(self.board, self.gpio), 'false')
         if err.strip() != '':
             self.console.insert(tk.END, 'FAILED\n', 'red')
@@ -262,7 +262,7 @@ class ServoBrake:
             self.console.see(tk.END)
             return
         self.console.insert(tk.END, 'OK\n', 'green')
-        self.console.insert(tk.END, '\n\nBRAKE SUCCESSFUL APPLIED\n\n', 'bold_green')
+        self.console.insert(tk.END, '\n\nBRAKE SUCCESSFULLY APPLIED\n\n', 'bold_green')
 
         self.console.insert(tk.END, 'Linking PathPirate servo brake coil relay pin....................', 'yellow')
         out, err = self.send_commands(self.halcmd, 'linkps', 'hm2_{}.0.gpio.{}.out'.format(self.board, self.gpio), '{}-axis-brake-release'.format(self.brake_axis))
@@ -275,7 +275,7 @@ class ServoBrake:
         self.console.insert(tk.END, 'OK\n', 'green')
 
         if self.board != 'EMC1':
-            self.console.insert(tk.END, "Denergzing machine board's servo brake relay to close contacts...", 'yellow')
+            self.console.insert(tk.END, "De-energzing machine board's servo brake relay to close contacts...", 'yellow')
             out, err = self.send_commands(self.halcmd, 'setp', 'hm2_{}.0.pwmgen.00.enable'.format(self.board), 'false')
             if err.strip() != '':
                 self.console.insert(tk.END, 'FAILED\n', 'red')
@@ -325,8 +325,9 @@ class ServoBrake:
             self.current_version_info.insert(tk.END, 'ERROR: PathPirate is not compatible with version {}! Unable to proceed!\n'.format(self.current_ver), 'red')
             self.console.insert(tk.END, '\nThe following versions are currently supported: {}\n'.format(', '.join(self.versionList)), 'yellow')
             return
+        self.major_ver = int(self.current_ver.split('.')[0].lstrip('v'))
         self.minor_ver = int(self.current_ver.split('.')[1])
-        if self.minor_ver > 10:
+        if (self.major_ver, self.minor_ver) > (2, 10):
             self.estop_signal = 'not-estop-signal'
         else:
             self.estop_signal = 'estop'
@@ -339,6 +340,9 @@ class ServoBrake:
             self.rapid_turn = machine_data['machine']['rapidturn']
         except:
             self.machine_info.insert(tk.END, 'ERROR: Missing data in: {}! Unable to proceed!\n'.format(self.machine_file), 'red')
+            return
+        if not isinstance(self.rapid_turn, bool):
+            self.machine_info.insert(tk.END, 'ERROR: Unexpected value for rapidturn in: {}! Unable to proceed!\n'.format(self.machine_file), 'red')
             return
         if self.machine in ['770', '1100-3', '15L Slant-PRO']:
             if self.machine in ['770', '1100-3']:
@@ -362,6 +366,9 @@ class ServoBrake:
             self.brake_axis = 'x'
         elif self.machine_class == 'mill' and not self.rapid_turn:
             self.brake_axis = 'z'
+        else:
+            self.machine_info.insert(tk.END, '\nERROR: Unable to determine brake axis for machine class: {}! Unable to proceed!\n'.format(self.machine_class), 'red')
+            return
         #keeps the upcoming dialogs on top
         self.main.lower()
         out, err = self.send_commands(self.halcmd, 'gets', self.estop_signal)
