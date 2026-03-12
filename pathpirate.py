@@ -37,7 +37,7 @@ class PathPirate:
     def __init__(self):
         # set up the main window
         self.main = tk.Tk()
-        self.main.title("PathPirate Configurator v1.15 for Tormach's PathPilot v2.9.2 - v2.14.2")
+        self.main.title("PathPirate Configurator v1.16 for Tormach's PathPilot v2.9.2 - v2.14.2")
         self.versionList = ['v2.9.2', 'v2.9.3', 'v2.9.4', 'v2.9.5', 'v2.9.6',
                             'v2.10.0', 'v2.10.1',
                             'v2.12.0', 'v2.12.1', 'v2.12.2', 'v2.12.3', 'v2.12.4', 'v2.12.5',
@@ -225,9 +225,11 @@ class PathPirate:
         missing = False
         change = False
         if (self.majorVer, self.minorVer) == (2, 9):
-            file_list = [self.uiCommon, self.uiLathe, self.consoleHal1, self.consoleHal2, self.tooltips, self.velImage, self.rapidImage]
+            file_list = [self.uiCommon, self.consoleHal1, self.consoleHal2, self.tooltips, self.velImage, self.rapidImage]
         else:
-            file_list = [self.uiCommon, self.uiLathe, self.consoleHal1, self.consoleHal2, self.tooltips, self.plasmaControls, self.latheControls, self.millControls]
+            file_list = [self.uiCommon, self.consoleHal1, self.consoleHal2, self.tooltips, self.plasmaControls, self.latheControls, self.millControls]
+        if (self.majorVer, self.minorVer, self.patchVer) <= (2, 14, 0):
+            file_list.append(self.uiLathe)
         for file in file_list:
             if not os.path.exists(file):
                 self.console.insert(tk.END, 'The following required file is missing: ', 'red')
@@ -237,7 +239,10 @@ class PathPirate:
             self.console.insert(tk.END, '\nAborting...\n', 'red')
             self.console.see(tk.END)
             return
-        for modFile in [self.uiCommon, self.uiLathe, self.consoleHal1, self.consoleHal2, self.tooltips]:
+        modFiles = [self.uiCommon, self.consoleHal1, self.consoleHal2, self.tooltips]
+        if (self.majorVer, self.minorVer, self.patchVer) <= (2, 14, 0):
+            modFiles.append(self.uiLathe)
+        for modFile in modFiles:
             tempFile = '{}.bak'.format(modFile)
             if not os.path.exists(tempFile):
                 copy(modFile, tempFile)
@@ -251,12 +256,11 @@ class PathPirate:
                     text = text.replace('lcnc_apply_function=lambda value: self.command.maxvel(value * self.maxvel_lin / 100, value * self.maxvel_ang / 100)),', \
                     'lcnc_apply_function=lambda value: self.command.rapidrate(value / 100)), #Changed by PathPirate')
                 elif modFile == self.uiLathe:
-                    if (self.majorVer, self.minorVer, self.patchVer) <= (2, 14, 0):
-                        text = text.replace('self.maxvel_lin = math.sqrt(inch_per_second * 2)', \
-                                            'self.maxvel_lin = math.sqrt(2 * inch_per_second**2)')
-                        text = text.replace('self.apply_newest_override_slider_values(force = True)', \
-                        'self.apply_newest_override_slider_values(force = True)\n' \
-                        '            self.command.maxvel(self.maxvel_lin, self.maxvel_ang) #Changed by PathPirate')
+                    text = text.replace('self.maxvel_lin = math.sqrt(inch_per_second * 2)', \
+                                        'self.maxvel_lin = math.sqrt(2 * inch_per_second**2)')
+                    text = text.replace('self.apply_newest_override_slider_values(force = True)', \
+                    'self.apply_newest_override_slider_values(force = True)\n' \
+                    '            self.command.maxvel(self.maxvel_lin, self.maxvel_ang) #Changed by PathPirate')
                 elif modFile == self.tooltips:
                     text = text.replace('''
         "maxvel_override_100": {
